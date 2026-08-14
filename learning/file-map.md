@@ -40,7 +40,8 @@ Claude Code's own project-level config — not app code, not part of
 |---|---|---|
 | `.git/` | generated | Created by `git init` (task 1.1). Git's own storage for the entire commit history of this project. Hidden (dot-prefixed), never hand-edit — only Git itself writes here. |
 | `.gitignore` | known | Authored (task 1.2): tells Git to never track `node_modules/` (regenerable via npm) or `.env` (secrets). Set up before either file exists. |
-| `/` (repo root) | parked | Holds `learning/`, `.claude/`, and `.git/`. Section 1 of `plan.md` continues from here. |
+| `index.html` | known | Authored solo (task 1.5): the first real app page — a hardcoded fake week of recipes, plain HTML, no CSS/JS yet. Section 2 rebuilds this in React. |
+| `/` (repo root) | parked | Holds `learning/`, `.claude/`, `.git/`, and `index.html`. Section 1 of `plan.md` continues from here. |
 
 ---
 

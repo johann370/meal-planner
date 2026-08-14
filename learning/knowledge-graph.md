@@ -42,6 +42,8 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 | SQL relationships (foreign keys, joins) | seed | — | — | — |
 | Password hashing/comparison | seed | — | — | — |
 | Test assertions (expect/assert) | seed | — | — | — |
+| HTML document structure (doctype, head/body, tags, valid nesting) | practicing | 2026-08-14 | 2026-08-14 | Authored `index.html` independently (no scaffold used) — valid doctype/head/body, 7 correctly-nested `<li><h2><p>` day entries, all real content |
+| Block-level default rendering (headings/paragraphs stack; one bullet per `<li>`) | introduced | 2026-08-14 | 2026-08-14 | Predicted 2 lines per day (correct) and bullet placement (guessed "spans both lines," actual is "anchors to first line only") — gap explained |
 
 ## Structural (how files and pieces connect)
 
@@ -56,12 +58,15 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 | Environment variables (`.env` files) | practicing | 2026-08-13 | 2026-08-13 | Authored the `.gitignore` entry for `.env`; first draft explained it as "varies per environment," revised after a prompt to the sharper reason (secrets exposure) |
 | Hidden files / dotfiles (e.g. `.git`) | practicing | 2026-08-13 | 2026-08-13 | Predicted `git init` would show "no changes"; corrected the gap by reasoning through where history must be stored, then ran `ls -a` themselves and found `.git` |
 | `.gitignore` pattern syntax (trailing slash = folder) | practicing | 2026-08-13 | 2026-08-13 | Wrote `.env/` (folder syntax) for what's actually a file; caught and fixed it themselves after being asked to distinguish file vs. folder |
+| Git branches as movable pointers (vs. commit hashes as content fingerprints) | introduced | 2026-08-14 | 2026-08-14 | Predicted `git branch -M main` would change the commit hash; ran it, saw the hash was unchanged, and the pointer-vs-fingerprint distinction was explained to close the gap |
+| Git remotes (`origin`, fetch/push, `-u`/upstream tracking) | practicing | 2026-08-14 | 2026-08-14 | Ran `git remote add origin ...`, correctly predicted `git remote -v` would show the GitHub URL, then ran `git push -u origin main` themselves and got a real push through |
+| SSH host verification (known_hosts, fingerprint check) | introduced | 2026-08-14 | 2026-08-14 | Hit the first-time host-authenticity prompt on push; had it explained as a one-time trust check, accepted it correctly |
 
 ## Engineering practice
 
 | Concept | Status | Introduced | Last reviewed | Evidence |
 |---|---|---|---|---|
-| Git & version control (init/commit/push) | understood | 2026-08-13 | 2026-08-13 | Quizzed "what does Git protect": correctly distinguished explicit/deliberate commits from autosave, and tied that to reliable reverting |
+| Git & version control (init/commit/push) | understood | 2026-08-13 | 2026-08-14 | Quizzed "what does Git protect": correctly distinguished explicit/deliberate commits from autosave, and tied that to reliable reverting. Reinforced 8/14: correctly predicted `git status` mid-stage, post-commit clean state, and `git log --oneline` output before running each |
 | Databases as persistent storage | introduced | 2026-08-13 | 2026-08-13 | Own words, re: relational shape of the data: "since there a lot of links/relationships in the data for my app, a relational database...would be better" |
 | Choosing PostgreSQL specifically | understood | 2026-08-13 | 2026-08-13 | Quizzed "why Postgres": correctly named both the relational shape of the data (recipes↔days) and the industry/docs reason for Postgres specifically, unprompted |
 | The backend/server's role | introduced | 2026-08-13 | 2026-08-13 | Explained as core component #3; discussed again during Decision 3 (Express) |

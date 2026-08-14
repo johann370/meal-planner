@@ -41,9 +41,9 @@ is set up in Section 1, before any app code, and used throughout.
    *Deliverable: a real, version-controlled page that opens in a browser.*
    - [x] 1.1 Initialize a Git repository in the project folder.
    - [x] 1.2 Add a `.gitignore` so junk/local-only files never get tracked.
-   - [ ] 1.3 Make the first commit (the existing `learning/` files + `.gitignore`).
-   - [ ] 1.4 Create a GitHub repo, connect it as the remote, and push.
-   - [ ] 1.5 Build `index.html` — a static page with a hardcoded fake week of recipes.
+   - [x] 1.3 Make the first commit (the existing `learning/` files + `.gitignore`).
+   - [x] 1.4 Create a GitHub repo, connect it as the remote, and push.
+   - [x] 1.5 Build `index.html` — a static page with a hardcoded fake week of recipes.
    - [ ] 1.6 Commit and push the new page.
 2. **Styling + interactivity, switch to React.** Rebuild the same page in
    React, styled properly, with basic interactivity (e.g. clicking a day
