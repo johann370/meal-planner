@@ -34,6 +34,17 @@ Claude Code's own project-level config — not app code, not part of
 |---|---|---|
 | `.claude/commands/next-task.md` | parked | A saved slash command (`/next-task`) — the full "read the plan, execute one task, teach as you go" prompt, so it doesn't need retyping/pasting each time. I wrote it at your request; deep dive whenever you want to read or tweak the wording yourself. |
 
+## `backend/`
+
+The Express server (Section 3), started from scratch with `npm init` (task 3.1) — no scaffolding tool, unlike `frontend/`. Sits alongside `frontend/` as its own separate project.
+
+| Path | Status | What it is / why it exists |
+|---|---|---|
+| `backend/package.json` | known | Authored via `npm init` (task 3.1); now lists Express as a dependency (task 3.2). |
+| `backend/index.js` | known | Authored solo (task 3.3): minimal Express server, one `GET /` route responding with a basic message. Entry point (`main` in `package.json`). |
+| `backend/package-lock.json` | generated | Created by `npm install express` (task 3.2). Exact locked versions of Express + its 66 transitive dependencies. Never hand-edit. |
+| `backend/node_modules/` | generated | Installed dependencies — 65 package folders, not just Express (dependency tree). Ignored by git, regenerable. |
+
 ## Project root
 
 | Path | Status | What it is / why it exists |

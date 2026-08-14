@@ -57,11 +57,19 @@ is set up in Section 1, before any app code, and used throughout.
    - [x] 2.3 Style the page properly (real CSS, not browser defaults).
    - [x] 2.4 Add click interactivity — clicking a day highlights it
          (first use of React state).
-   - [ ] 2.5 Commit and push the React app.
+   - [x] 2.5 Commit and push the React app.
 3. **A simple local server.** Stand up an Express server locally that
    responds to a request with a basic message or piece of JSON.
    *Deliverable: frontend and backend both running, as two separate things,
    for the first time.*
+   - [x] 3.1 Set up a `backend/` folder with its own `package.json`
+         (`npm init`), alongside `frontend/`.
+   - [x] 3.2 Install Express as a dependency.
+   - [x] 3.3 Write a minimal server with one route that responds with a
+         basic message or JSON.
+   - [x] 3.4 Run it locally and confirm the response (with the React dev
+         server also still running — two separate things at once).
+   - [ ] 3.5 Commit and push the backend.
 4. **APIs — connect frontend to backend.** The React app fetches its week
    data from the Express server instead of local hardcoded data (server
    still uses fake/in-memory data, no database yet).
