@@ -1,0 +1,6 @@
+# node_modules holds all the external packages for the project. They don't have to get committed because they can all be installed later through npm. 
+node_modules/
+
+
+# .env holds all the environment variables for the project, this is sensitive information so we wouldn't want to commit it.
+.env
