@@ -34,14 +34,15 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 | Arrays | seed | — | — | — |
 | Objects | seed | — | — | — |
 | DOM manipulation (select/update elements) | seed | — | — | — |
-| Event listeners (clicks, etc.) | seed | — | — | — |
-| React components, JSX, props, state | seed | — | — | — |
+| Event listeners (clicks, etc.) | practicing | 2026-08-14 | 2026-08-14 | Wired working `onClick` handlers on all 7 day cards, each correctly calling the `useState` setter with its own day name |
+| React components, JSX, props, state | practicing | 2026-08-14 | 2026-08-14 | Authored `useState`, an `onClick` setter, and a conditional-`className` ternary across all 7 days. Predicted (wrongly) that a hardcoded-vs-dynamic `className` bug on 6/7 days would still work; found via DOM inspection that state updating doesn't automatically propagate — each JSX spot must explicitly read the state — then fixed all 6 correctly, unprompted, including swapping `==` for `===` |
 | async/await and `fetch` | seed | — | — | — |
 | HTTP verbs (GET/POST/PUT/DELETE) | seed | — | — | — |
 | SQL basics (SELECT/INSERT/UPDATE/DELETE) | seed | — | — | — |
 | SQL relationships (foreign keys, joins) | seed | — | — | — |
 | Password hashing/comparison | seed | — | — | — |
 | Test assertions (expect/assert) | seed | — | — | — |
+| CSS layout: Flexbox (`display:flex`, `flex-wrap`, `justify-content`, `flex: 1`) | practicing | 2026-08-14 | 2026-08-14 | Authored `.week`/`.day` flex layout independently; predicted resize behavior, observed real shrink-before-wrap mechanic (flex-basis:0 + min-width:auto floor), gap explained |
 | HTML document structure (doctype, head/body, tags, valid nesting) | practicing | 2026-08-14 | 2026-08-14 | Authored `index.html` independently (no scaffold used) — valid doctype/head/body, 7 correctly-nested `<li><h2><p>` day entries, all real content |
 | Block-level default rendering (headings/paragraphs stack; one bullet per `<li>`) | introduced | 2026-08-14 | 2026-08-14 | Predicted 2 lines per day (correct) and bullet placement (guessed "spans both lines," actual is "anchors to first line only") — gap explained |
 
@@ -49,10 +50,11 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 
 | Concept | Status | Introduced | Last reviewed | Evidence |
 |---|---|---|---|---|
-| `package.json` and npm dependencies | seed | — | — | — |
-| `node_modules` | seed | — | — | — |
+| `package.json` and npm dependencies | introduced | 2026-08-14 | 2026-08-14 | Ran the Vite scaffold (`npm create vite@latest`), saw `frontend/package.json` land with React/Vite listed as dependencies; role explained |
+| `node_modules` | introduced | 2026-08-14 | 2026-08-14 | Watched `npm install` run during scaffolding, then confirmed via `git check-ignore` that `frontend/node_modules` is correctly ignored |
 | Modules (import/export) | seed | — | — | — |
-| Project folder structure (frontend vs. backend as separate folders) | seed | — | — | — |
+| Project folder structure (frontend vs. backend as separate folders) | introduced | 2026-08-14 | 2026-08-14 | Scaffolded the React app into a new `frontend/` folder specifically so `backend/` can sit alongside it later, keeping the two concerns physically separate |
+| Vite dev server & HMR (hot module reload) | introduced | 2026-08-14 | 2026-08-14 | Observed `hmr update /src/App.jsx` in the terminal on save; browser updated without a manual refresh, mechanism explained |
 | Client-server communication (request/response) | introduced | 2026-08-13 | 2026-08-13 | API explained as the fixed contract of requests the frontend can send and responses it gets back |
 | Frontend/backend as separate concerns | introduced | 2026-08-13 | 2026-08-13 | Own words: "it also clearly separates the frontend from the backend, so i can learn each one independently" |
 | Environment variables (`.env` files) | practicing | 2026-08-13 | 2026-08-13 | Authored the `.gitignore` entry for `.env`; first draft explained it as "varies per environment," revised after a prompt to the sharper reason (secrets exposure) |
@@ -66,7 +68,7 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 
 | Concept | Status | Introduced | Last reviewed | Evidence |
 |---|---|---|---|---|
-| Git & version control (init/commit/push) | understood | 2026-08-13 | 2026-08-14 | Quizzed "what does Git protect": correctly distinguished explicit/deliberate commits from autosave, and tied that to reliable reverting. Reinforced 8/14: correctly predicted `git status` mid-stage, post-commit clean state, and `git log --oneline` output before running each |
+| Git & version control (init/commit/push) | understood | 2026-08-13 | 2026-08-14 | Quizzed "what does Git protect": correctly distinguished explicit/deliberate commits from autosave, and tied that to reliable reverting. Reinforced 8/14: correctly predicted `git status` mid-stage, post-commit clean state, and `git log --oneline` output before running each; correctly predicted `git add .` stages both untracked and modified files together |
 | Databases as persistent storage | introduced | 2026-08-13 | 2026-08-13 | Own words, re: relational shape of the data: "since there a lot of links/relationships in the data for my app, a relational database...would be better" |
 | Choosing PostgreSQL specifically | understood | 2026-08-13 | 2026-08-13 | Quizzed "why Postgres": correctly named both the relational shape of the data (recipes↔days) and the industry/docs reason for Postgres specifically, unprompted |
 | The backend/server's role | introduced | 2026-08-13 | 2026-08-13 | Explained as core component #3; discussed again during Decision 3 (Express) |
@@ -76,6 +78,8 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 | Configuration / secrets management | understood | 2026-08-13 | 2026-08-13 | Quizzed via the `.gitignore` `.env` reasoning: initial draft gave a weaker reason, revised to correctly tie it to preventing secrets exposure when prompted to reconcile with earlier own-words explanation |
 | Automated testing (why/what) | seed | — | — | — |
 | Scoping an MVP / deferring scope | introduced | 2026-08-13 | 2026-08-13 | Co-authored the In-MVP / Parking-lot split and working agreement in `project.md` |
+| Linting as opt-in vs. bundled into dev server (CRA vs. Vite) | introduced | 2026-08-14 | 2026-08-14 | Correctly recalled CRA's auto-warnings from past experience; reconciled the gap by reading `package.json`'s scripts and seeing `lint` is separate from `dev` |
+| Reading JS error messages (e.g. `ReferenceError`) | introduced | 2026-08-14 | 2026-08-14 | Predicted a vague error for `useState is not defined`; actual message named the exact identifier — precision of reference errors as a pattern was pointed out |
 
 ## AI-era practice
 

@@ -1,0 +1,20 @@
+.week {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.day {
+  list-style-type: none;
+  border: 1px solid #ccc;
+  padding: 10px;
+  flex: 1;
+}
+
+.day.selected {
+  border-color: #ffd900;
+}
+
+.day h2 {
+  border-bottom: 1px solid #ccc;
+}

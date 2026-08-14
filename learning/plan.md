@@ -44,12 +44,20 @@ is set up in Section 1, before any app code, and used throughout.
    - [x] 1.3 Make the first commit (the existing `learning/` files + `.gitignore`).
    - [x] 1.4 Create a GitHub repo, connect it as the remote, and push.
    - [x] 1.5 Build `index.html` — a static page with a hardcoded fake week of recipes.
-   - [ ] 1.6 Commit and push the new page.
+   - [x] 1.6 Commit and push the new page.
 2. **Styling + interactivity, switch to React.** Rebuild the same page in
    React, styled properly, with basic interactivity (e.g. clicking a day
    highlights it). Still hardcoded fake data, no server involved.
    *Deliverable: a page that looks and behaves like an app, nothing real
    wired up yet.*
+   - [x] 2.1 Scaffold a new React project with Vite (the standard modern
+         tool for this) inside the repo.
+   - [x] 2.2 Replace the starter content with the hardcoded week of
+         recipes, rendered via a React component.
+   - [x] 2.3 Style the page properly (real CSS, not browser defaults).
+   - [x] 2.4 Add click interactivity — clicking a day highlights it
+         (first use of React state).
+   - [ ] 2.5 Commit and push the React app.
 3. **A simple local server.** Stand up an Express server locally that
    responds to a request with a basic message or piece of JSON.
    *Deliverable: frontend and backend both running, as two separate things,

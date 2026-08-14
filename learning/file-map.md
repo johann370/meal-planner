@@ -41,7 +41,28 @@ Claude Code's own project-level config — not app code, not part of
 | `.git/` | generated | Created by `git init` (task 1.1). Git's own storage for the entire commit history of this project. Hidden (dot-prefixed), never hand-edit — only Git itself writes here. |
 | `.gitignore` | known | Authored (task 1.2): tells Git to never track `node_modules/` (regenerable via npm) or `.env` (secrets). Set up before either file exists. |
 | `index.html` | known | Authored solo (task 1.5): the first real app page — a hardcoded fake week of recipes, plain HTML, no CSS/JS yet. Section 2 rebuilds this in React. |
-| `/` (repo root) | parked | Holds `learning/`, `.claude/`, `.git/`, and `index.html`. Section 1 of `plan.md` continues from here. |
+| `/` (repo root) | parked | Holds `learning/`, `.claude/`, `.git/`, `index.html`, and `frontend/`. Section 1's static page lives at root; the React rebuild (Section 2) lives in `frontend/`. |
+
+## `frontend/`
+
+The React app (task 2.1), scaffolded with Vite. Separate folder from the repo root on purpose — `backend/` will sit alongside it in Section 3, keeping frontend/backend as distinct concerns.
+
+| Path | Status | What it is / why it exists |
+|---|---|---|
+| `frontend/package.json` | parked | Project manifest — lists dependencies (React, Vite) and npm scripts (`npm run dev`, etc.). Deep dive: whenever we add a new dependency. |
+| `frontend/index.html` | parked | Stripped-down HTML shell with an empty `<div id="root">` and a script tag loading `src/main.jsx`. React fills that div at runtime. |
+| `frontend/src/main.jsx` | parked | Entry point — finds `#root` and tells React to render the app into it. |
+| `frontend/src/App.jsx` | known | Authored (tasks 2.2–2.4): week-of-recipes JSX, now with `useState` tracking `selectedDay` and per-day `onClick` + conditional `className` for click-to-highlight. |
+| `frontend/vite.config.js` | parked | Tells Vite this is a React project so it knows how to handle JSX. |
+| `frontend/.gitignore` | parked | Vite-generated, scoped to this subfolder — redundant with the root `.gitignore`'s `node_modules/` rule but harmless. |
+| `frontend/package-lock.json` | generated | Exact installed dependency versions. Never hand-edit. |
+| `frontend/node_modules/` | generated | Installed dependencies (via `npm install`). Ignored by git, regenerable. |
+| `frontend/.oxlintrc.json` | parked | Config for Oxlint, the linter chosen during scaffolding. |
+| `frontend/public/` | parked | Static assets served as-is (favicon, icons). |
+| `frontend/src/App.css` | known | Authored (tasks 2.3–2.4): `.week`/`.day` flexbox card layout, plus `.day.selected` for the click-to-highlight state (yellow border). |
+| `frontend/src/index.css` | parked | Vite's default global stylesheet (typography, dark mode, `#root` width) — untouched so far, still just explained, not authored. |
+| `frontend/src/assets/` | parked | Default scaffold image assets. |
+| `frontend/README.md` | parked | Vite's boilerplate readme. |
 
 ---
 
