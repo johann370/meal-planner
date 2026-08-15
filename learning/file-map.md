@@ -41,7 +41,7 @@ The Express server (Section 3), started from scratch with `npm init` (task 3.1) 
 | Path | Status | What it is / why it exists |
 |---|---|---|
 | `backend/package.json` | known | Authored via `npm init` (task 3.1); now lists Express as a dependency (task 3.2). |
-| `backend/index.js` | known | Authored solo (task 3.3): minimal Express server, one `GET /` route responding with a basic message. Entry point (`main` in `package.json`). |
+| `backend/index.js` | known | Authored solo (tasks 3.3–4.4): Express server; `/api/week` returns a real in-memory array of 7 `{day, meal}` objects. `cors()` middleware added (correctly ordered before the route) to allow the frontend's cross-origin fetch. |
 | `backend/package-lock.json` | generated | Created by `npm install express` (task 3.2). Exact locked versions of Express + its 66 transitive dependencies. Never hand-edit. |
 | `backend/node_modules/` | generated | Installed dependencies — 65 package folders, not just Express (dependency tree). Ignored by git, regenerable. |
 
@@ -63,7 +63,7 @@ The React app (task 2.1), scaffolded with Vite. Separate folder from the repo ro
 | `frontend/package.json` | parked | Project manifest — lists dependencies (React, Vite) and npm scripts (`npm run dev`, etc.). Deep dive: whenever we add a new dependency. |
 | `frontend/index.html` | parked | Stripped-down HTML shell with an empty `<div id="root">` and a script tag loading `src/main.jsx`. React fills that div at runtime. |
 | `frontend/src/main.jsx` | parked | Entry point — finds `#root` and tells React to render the app into it. |
-| `frontend/src/App.jsx` | known | Authored (tasks 2.2–2.4): week-of-recipes JSX, now with `useState` tracking `selectedDay` and per-day `onClick` + conditional `className` for click-to-highlight. |
+| `frontend/src/App.jsx` | known | Authored (tasks 2.2–4.4): week-of-recipes JSX; `week` is real backend-fetched state (`useEffect` + `fetch`), CORS unblocked — genuinely live end-to-end. |
 | `frontend/vite.config.js` | parked | Tells Vite this is a React project so it knows how to handle JSX. |
 | `frontend/.gitignore` | parked | Vite-generated, scoped to this subfolder — redundant with the root `.gitignore`'s `node_modules/` rule but harmless. |
 | `frontend/package-lock.json` | generated | Exact installed dependency versions. Never hand-edit. |

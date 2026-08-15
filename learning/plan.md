@@ -69,12 +69,24 @@ is set up in Section 1, before any app code, and used throughout.
          basic message or JSON.
    - [x] 3.4 Run it locally and confirm the response (with the React dev
          server also still running — two separate things at once).
-   - [ ] 3.5 Commit and push the backend.
+   - [x] 3.5 Commit and push the backend.
 4. **APIs — connect frontend to backend.** The React app fetches its week
    data from the Express server instead of local hardcoded data (server
    still uses fake/in-memory data, no database yet).
    *Deliverable: the first real conversation between frontend and backend
    over HTTP.*
+   - [x] 4.1 Move the hardcoded week data into `backend/index.js` as an
+         in-memory array; add a `GET /api/week` route returning it as JSON.
+   - [x] 4.2 In `App.jsx`, refactor the 7 hardcoded `<li>` elements into a
+         `.map()` over a local array (still local data — first use of
+         `.map()`/`key` in JSX).
+   - [x] 4.3 Fetch the week data from the backend (`fetch` + `useEffect` +
+         state) instead of the local array.
+   - [x] 4.4 Fix whatever breaks on the first real cross-origin request
+         (likely CORS) so the fetch actually succeeds.
+   - [x] 4.5 Confirm the loop end-to-end: change the backend's fake data
+         and see it reflected in the browser on refresh.
+   - [ ] 4.6 Commit and push.
 5. **The database.** Set up PostgreSQL locally, create a recipes table,
    have the backend read real data from it instead of memory.
    *Deliverable: data that survives a server restart.*
