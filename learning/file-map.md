@@ -41,7 +41,8 @@ The Express server (Section 3), started from scratch with `npm init` (task 3.1) 
 | Path | Status | What it is / why it exists |
 |---|---|---|
 | `backend/package.json` | known | Authored via `npm init` (task 3.1); now lists Express as a dependency (task 3.2). |
-| `backend/index.js` | known | Authored solo (tasks 3.3–4.4): Express server; `/api/week` returns a real in-memory array of 7 `{day, meal}` objects. `cors()` middleware added (correctly ordered before the route) to allow the frontend's cross-origin fetch. |
+| `backend/index.js` | known | Authored solo (tasks 3.3–5.4): Express server; `/api/week` now queries the real `recipes` table via `pool.query(...).then()`, no fake data left. All dead code (old hardcoded array, test query) cleaned up unprompted. |
+| `backend/.env` | known | Authored (task 5.3): DB connection credentials (user/password/host/port/database name). Git-ignored via the root `.gitignore`'s `.env` rule — never committed. |
 | `backend/package-lock.json` | generated | Created by `npm install express` (task 3.2). Exact locked versions of Express + its 66 transitive dependencies. Never hand-edit. |
 | `backend/node_modules/` | generated | Installed dependencies — 65 package folders, not just Express (dependency tree). Ignored by git, regenerable. |
 

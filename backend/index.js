@@ -1,41 +1,27 @@
 const express = require('express');
+require('dotenv').config();
+const {Pool} = require('pg');
+const pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+});
+
 const app = express();
 const cors = require('cors');
 app.use(cors());
 
 app.get('/api/week', (req, res) => {
-    const monday = {
-        day: 'Monday',
-        meal: 'Ice Cream'
-    };
-    const tuesday = {
-        day: 'Tuesday',
-        meal: 'Spaghetti Bolognese'
-    };
-    const wednesday = {
-        day: 'Wednesday',
-        meal: 'Vegetable Stir Fry'
-    };
-    const thursday = {
-        day: 'Thursday',
-        meal: 'Beef Tacos'
-    };
-    const friday = {
-        day: 'Friday',
-        meal: 'Salmon with Quinoa'
-    };
-    const saturday = {
-        day: 'Saturday',
-        meal: 'Chicken Curry'
-    };
-    const sunday = {
-        day: 'Sunday',
-        meal: 'Roast Beef with Vegetables'
-    };
-
-    const week = [monday, tuesday, wednesday, thursday, friday, saturday, sunday];
-
-    res.json(week);
+    pool.query('SELECT * FROM recipes ORDER BY id')
+    .then(result => {
+        res.json(result.rows);
+    })
+    .catch(err => {
+        console.error(err);
+        res.status(500).json({error: 'Internal server error'});
+    });
 });
 
 app.listen(3000, () => {

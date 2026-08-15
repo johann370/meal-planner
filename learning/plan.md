@@ -86,10 +86,20 @@ is set up in Section 1, before any app code, and used throughout.
          (likely CORS) so the fetch actually succeeds.
    - [x] 4.5 Confirm the loop end-to-end: change the backend's fake data
          and see it reflected in the browser on refresh.
-   - [ ] 4.6 Commit and push.
+   - [x] 4.6 Commit and push.
 5. **The database.** Set up PostgreSQL locally, create a recipes table,
    have the backend read real data from it instead of memory.
    *Deliverable: data that survives a server restart.*
+   - [x] 5.1 Install PostgreSQL, start the service, confirm it's running.
+   - [x] 5.2 Create a database and a `recipes` table, insert the fake
+         week as seed rows (via `psql`).
+   - [x] 5.3 Install `pg` (Node's Postgres client) in `backend/`, connect
+         to the database from Express.
+   - [x] 5.4 Change `/api/week` to query the database instead of the
+         in-memory array.
+   - [x] 5.5 Confirm the deliverable: restart the server and confirm the
+         data is still there.
+   - [ ] 5.6 Commit and push.
 6. **Core features + the login gate.** Full create/edit/delete of recipes
    and assigning them to days of the week, through the actual UI, end to
    end — plus the minimal single-login gate from the MVP.
