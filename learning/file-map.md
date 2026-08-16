@@ -41,17 +41,17 @@ The Express server (Section 3), started from scratch with `npm init` (task 3.1) 
 | Path | Status | What it is / why it exists |
 |---|---|---|
 | `backend/package.json` | known | Authored via `npm init` (task 3.1); now lists Express as a dependency (task 3.2). |
-| `backend/index.js` | known | Authored solo (tasks 3.3–5.4): Express server; `/api/week` now queries the real `recipes` table via `pool.query(...).then()`, no fake data left. All dead code (old hardcoded array, test query) cleaned up unprompted. |
-| `backend/.env` | known | Authored (task 5.3): DB connection credentials (user/password/host/port/database name). Git-ignored via the root `.gitignore`'s `.env` rule — never committed. |
-| `backend/package-lock.json` | generated | Created by `npm install express` (task 3.2). Exact locked versions of Express + its 66 transitive dependencies. Never hand-edit. |
-| `backend/node_modules/` | generated | Installed dependencies — 65 package folders, not just Express (dependency tree). Ignored by git, regenerable. |
+| `backend/index.js` | known | Authored solo (tasks 3.3–6.2): Express server with full recipe CRUD (`GET`/`POST`/`PUT`/`DELETE /api/recipes`) and `PUT /api/week/:day` for day assignment; `/api/week` uses a `JOIN` across the split `recipes`/`week_meal` schema. All routes tested for real via `curl`. Task 6.5: added `POST /api/login` (`bcrypt.compare` against the stored hash, self-authored) and a `requireAuth` middleware (guide-authored) gating every route registered after it — reuses the same middleware-ordering trick as `cors`. Task 6.6: `cors()` narrowed from wildcard to `{ origin: 'http://localhost:5173', credentials: true }` (guide-authored) so the frontend's session cookie is actually accepted cross-origin. |
+| `backend/.env` | known | Authored (task 5.3): DB connection credentials (user/password/host/port/database name). Task 6.5: added `ADMIN_PASSWORD_HASH` (self-generated via `bcrypt.hashSync`, real password never shared with the guide) and `SESSION_SECRET` (guide-generated random hex, signs the session cookie). Git-ignored via the root `.gitignore`'s `.env` rule — never committed. |
+| `backend/package-lock.json` | generated | Created by `npm install express` (task 3.2), updated by later installs (`pg`, `bcryptjs`, `express-session`). Exact locked dependency versions. Never hand-edit. |
+| `backend/node_modules/` | generated | Installed dependencies (Express, pg, bcryptjs, express-session, and their dependency trees). Ignored by git, regenerable. |
 
 ## Project root
 
 | Path | Status | What it is / why it exists |
 |---|---|---|
 | `.git/` | generated | Created by `git init` (task 1.1). Git's own storage for the entire commit history of this project. Hidden (dot-prefixed), never hand-edit — only Git itself writes here. |
-| `.gitignore` | known | Authored (task 1.2): tells Git to never track `node_modules/` (regenerable via npm) or `.env` (secrets). Set up before either file exists. |
+| `.gitignore` | known | Authored (task 1.2): tells Git to never track `node_modules/` (regenerable via npm) or `.env` (secrets). Set up before either file exists. Task 6.6: added `cookies.txt`, after a stray `curl -c cookies.txt` cookie-jar file from testing the login route turned up untracked at the repo root; the file itself was deleted (disposable test output, not app code). |
 | `index.html` | known | Authored solo (task 1.5): the first real app page — a hardcoded fake week of recipes, plain HTML, no CSS/JS yet. Section 2 rebuilds this in React. |
 | `/` (repo root) | parked | Holds `learning/`, `.claude/`, `.git/`, `index.html`, and `frontend/`. Section 1's static page lives at root; the React rebuild (Section 2) lives in `frontend/`. |
 
@@ -64,7 +64,7 @@ The React app (task 2.1), scaffolded with Vite. Separate folder from the repo ro
 | `frontend/package.json` | parked | Project manifest — lists dependencies (React, Vite) and npm scripts (`npm run dev`, etc.). Deep dive: whenever we add a new dependency. |
 | `frontend/index.html` | parked | Stripped-down HTML shell with an empty `<div id="root">` and a script tag loading `src/main.jsx`. React fills that div at runtime. |
 | `frontend/src/main.jsx` | parked | Entry point — finds `#root` and tells React to render the app into it. |
-| `frontend/src/App.jsx` | known | Authored (tasks 2.2–4.4): week-of-recipes JSX; `week` is real backend-fetched state (`useEffect` + `fetch`), CORS unblocked — genuinely live end-to-end. |
+| `frontend/src/App.jsx` | known | Authored (tasks 2.2–4.4): week-of-recipes JSX; `week` is real backend-fetched state (`useEffect` + `fetch`), CORS unblocked — genuinely live end-to-end. Task 6.3: now also renders `<RecipeManager />` below the week list (first multi-component composition; the import/render wiring was written by the guide, not authored solo). Task 6.4: each day now has a `<select>` dropdown (built from fetched `recipes` state) that `PUT`s an assignment via `handleAssign` and re-`fetchWeek()`s to refresh — authored solo, correct on the first try, no bugs. Also self-extracted `fetchRecipes` as a named function mirroring `fetchWeek`, unprompted. Task 6.6: gated behind `loggedIn` state — an early-return `if (!loggedIn) return <Login .../>` and a `useEffect` dependency array changed from `[]` to `[loggedIn]` (both guide-authored); all three of its own `fetch` calls gained `credentials: 'include'` (`fetchWeek` self-fixed, `fetchRecipes`/`handleAssign` guide-swept). |
 | `frontend/vite.config.js` | parked | Tells Vite this is a React project so it knows how to handle JSX. |
 | `frontend/.gitignore` | parked | Vite-generated, scoped to this subfolder — redundant with the root `.gitignore`'s `node_modules/` rule but harmless. |
 | `frontend/package-lock.json` | generated | Exact installed dependency versions. Never hand-edit. |
@@ -72,6 +72,8 @@ The React app (task 2.1), scaffolded with Vite. Separate folder from the repo ro
 | `frontend/.oxlintrc.json` | parked | Config for Oxlint, the linter chosen during scaffolding. |
 | `frontend/public/` | parked | Static assets served as-is (favicon, icons). |
 | `frontend/src/App.css` | known | Authored (tasks 2.3–2.4): `.week`/`.day` flexbox card layout, plus `.day.selected` for the click-to-highlight state (yellow border). |
+| `frontend/src/RecipeManager.jsx` | known | Authored (task 6.3): full CRUD UI for recipes — fetches and lists `/api/recipes`, a controlled form (create + edit, same form/handler reused via `editingId` state) doing real `POST`/`PUT`/`DELETE` calls. Debugged two real bugs solo: a `setRecipe`/`setRecipes` typo caught via a browser-console `ReferenceError`, and a missing `else` that was silently double-submitting on edit (POST *and* PUT both firing). Task 6.6: all four `fetch` calls gained `credentials: 'include'` (guide-authored sweep) so they keep working once the app is behind the login gate. |
+| `frontend/src/Login.jsx` | known | Authored (task 6.6): a controlled password form; `handleSubmit` (self-authored) `POST`s to `/api/login` with `credentials: 'include'`, calling the `onLogin` callback prop on success or setting an error on failure. |
 | `frontend/src/index.css` | parked | Vite's default global stylesheet (typography, dark mode, `#root` width) — untouched so far, still just explained, not authored. |
 | `frontend/src/assets/` | parked | Default scaffold image assets. |
 | `frontend/README.md` | parked | Vite's boilerplate readme. |

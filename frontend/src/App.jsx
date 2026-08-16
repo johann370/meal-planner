@@ -1,16 +1,54 @@
 import {useState, useEffect} from 'react'
 import './App.css'
+import RecipeManager from './RecipeManager.jsx'
+import Login from './Login.jsx'
 
 function App() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [week, setWeek] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [loggedIn, setLoggedIn] = useState(false);
 
-  useEffect(() => {
-    fetch('http://localhost:3000/api/week')
+  function fetchWeek() {
+    fetch('http://localhost:3000/api/week', {
+      credentials: 'include'
+    })
       .then(response => response.json())
       .then(data => setWeek(data));
-  }, [])
+  }
 
+  function fetchRecipes() {
+    fetch('http://localhost:3000/api/recipes', {
+      credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => setRecipes(data));
+  }
+
+  useEffect(() => {
+    if (loggedIn) {
+      fetchWeek();
+      fetchRecipes();
+    }
+  }, [loggedIn])
+
+
+  function handleAssign(day, recipeId) {
+    fetch(`http://localhost:3000/api/week/${day}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ recipeId }),
+      credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(() => fetchWeek())
+    .catch(err => console.error(err));
+  }
+
+
+  if (!loggedIn) {
+    return <Login onLogin={() => setLoggedIn(true)} />
+  }
 
   return (
     <>
@@ -19,8 +57,15 @@ function App() {
         {week.map((day => (<li key={day.day} className={selectedDay === day.day ? "day selected" : "day"} onClick={() => setSelectedDay(day.day)}>
           <h2>{day.day}</h2>
           <p>{day.meal}</p>
+          <select defaultValue="" onChange={e => handleAssign(day.day, e.target.value)}>
+            <option value="" disabled>Assign a recipe...</option>
+            {recipes.map(recipe => (
+              <option key={recipe.id} value={recipe.id}>{recipe.title}</option>
+            ))}
+          </select>
         </li>)))}
      </ul>
+     <RecipeManager />
     </>
   )
 }

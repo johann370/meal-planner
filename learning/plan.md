@@ -99,11 +99,25 @@ is set up in Section 1, before any app code, and used throughout.
          in-memory array.
    - [x] 5.5 Confirm the deliverable: restart the server and confirm the
          data is still there.
-   - [ ] 5.6 Commit and push.
+   - [x] 5.6 Commit and push.
 6. **Core features + the login gate.** Full create/edit/delete of recipes
    and assigning them to days of the week, through the actual UI, end to
    end — plus the minimal single-login gate from the MVP.
    *Deliverable: the whole MVP feature set working locally, behind a login.*
+   - [x] 6.1 Redesign the schema: split into a `recipes` table
+         (title/ingredients/instructions) and a `week_meal` table (day +
+         a foreign key to `recipes`); migrate existing data; confirm with
+         a `JOIN` query in `psql`.
+   - [x] 6.2 Backend: full CRUD routes for recipes (`GET`/`POST`/`PUT`/
+         `DELETE /api/recipes`), plus a route to assign a recipe to a day.
+   - [x] 6.3 Frontend: a "manage recipes" UI — create/edit/delete recipes
+         through real forms and buttons, wired to the new routes.
+   - [x] 6.4 Frontend: assign a recipe to a day through the UI, persisted
+         and visible on refresh.
+   - [x] 6.5 Backend: the login gate — single hardcoded credential check
+         (hashed password) blocking the API until authenticated.
+   - [x] 6.6 Frontend: a login page gating access to the whole app.
+   - [ ] 6.7 Commit and push.
 7. **Tests.** Automated tests covering core backend behavior (create a
    recipe, assign it to a day, fetch a week) as a safety net before
    deploying.
