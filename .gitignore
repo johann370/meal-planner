@@ -4,6 +4,7 @@ node_modules/
 
 # .env holds all the environment variables for the project, this is sensitive information so we wouldn't want to commit it.
 .env
+.env.*
 
 # cookies.txt is curl's cookie-jar output (e.g. curl -c cookies.txt) from testing
 # login/session routes by hand. It's disposable test output, not app code.

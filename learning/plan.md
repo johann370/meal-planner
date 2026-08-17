@@ -117,11 +117,29 @@ is set up in Section 1, before any app code, and used throughout.
    - [x] 6.5 Backend: the login gate — single hardcoded credential check
          (hashed password) blocking the API until authenticated.
    - [x] 6.6 Frontend: a login page gating access to the whole app.
-   - [ ] 6.7 Commit and push.
+   - [x] 6.7 Commit and push.
 7. **Tests.** Automated tests covering core backend behavior (create a
    recipe, assign it to a day, fetch a week) as a safety net before
    deploying.
    *Deliverable: a test suite that passes and would catch a real break.*
+   - [x] 7.1 Refactor: split the Express app out of `backend/index.js` into
+         its own `backend/app.js` (exported, no `app.listen`) so tests can
+         use it directly without a real server; confirm the app still runs
+         and responds identically afterward.
+   - [x] 7.2 Install Jest + Supertest; write one real test — an
+         unauthenticated request to a protected route returns 401 — and
+         see it pass.
+   - [x] 7.3 Test the login route: correct password succeeds (and unlocks
+         a protected route afterward); wrong password is rejected.
+   - [x] 7.4 Test `GET /api/week` returns the expected shape once logged in.
+   - [x] 7.5 Test `POST /api/recipes` actually creates a recipe.
+   - [x] 7.6 Test `PUT /api/week/:day` actually assigns a recipe to a day.
+   - [x] 7.7 Set up a separate PostgreSQL test database so tests can never
+         corrupt real app data — including the case where a test fails or
+         crashes partway through, before its own cleanup code runs. Point
+         the test suite at it via environment config; confirm the existing
+         6 tests still pass against it.
+   - [ ] 7.8 Commit and push.
 8. **Live deployment.** Deploy frontend, backend, and database to Render,
    reachable at a real public URL.
    *Deliverable: the MVP bar from `project.md` — live, on the real
