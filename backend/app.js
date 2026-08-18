@@ -7,13 +7,24 @@ if(process.env.NODE_ENV === 'test') {
 const {Pool} = require('pg');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
-});
+// TODO(you): build a `poolConfig` variable — if process.env.DATABASE_URL is
+// set (Render), use { connectionString: process.env.DATABASE_URL };
+// otherwise (local dev/test) use the same discrete fields as below.
+
+let poolConfig;
+
+if(process.env.DATABASE_URL) {
+    poolConfig = {connectionString: process.env.DATABASE_URL};
+}else {
+    poolConfig = {
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: process.env.DB_PORT,
+    };
+}
+const pool = new Pool(poolConfig);
 
 const app = express();
 const cors = require('cors');
