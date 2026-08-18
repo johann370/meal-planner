@@ -10,7 +10,7 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   function fetchWeek() {
-    fetch('http://localhost:3000/api/week', {
+    fetch(`${import.meta.env.VITE_API_URL}/api/week`, {
       credentials: 'include'
     })
       .then(response => response.json())
@@ -18,7 +18,7 @@ function App() {
   }
 
   function fetchRecipes() {
-    fetch('http://localhost:3000/api/recipes', {
+    fetch(`${import.meta.env.VITE_API_URL}/api/recipes`, {
       credentials: 'include'
     })
     .then(response => response.json())
@@ -34,7 +34,7 @@ function App() {
 
 
   function handleAssign(day, recipeId) {
-    fetch(`http://localhost:3000/api/week/${day}`, {
+    fetch(`${import.meta.env.VITE_API_URL}/api/week/${day}`, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ recipeId }),

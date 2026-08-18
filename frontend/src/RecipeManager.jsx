@@ -8,7 +8,7 @@ function RecipeManager() {
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/recipes', {
+    fetch(`${import.meta.env.VITE_API_URL}/api/recipes`, {
       credentials: 'include'
     })
     .then(response => response.json())
@@ -16,7 +16,7 @@ function RecipeManager() {
   }, [])
 
   function handleDelete(id) {
-    fetch(`http://localhost:3000/api/recipes/${id}`, {
+    fetch(`${import.meta.env.VITE_API_URL}/api/recipes/${id}`, {
       method: 'DELETE',
       credentials: 'include'
     })
@@ -39,7 +39,7 @@ function RecipeManager() {
     const recipeData = {title, ingredients, instructions};
 
     if(editingId) {
-      fetch(`http://localhost:3000/api/recipes/${editingId}`, {
+      fetch(`${import.meta.env.VITE_API_URL}/api/recipes/${editingId}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(recipeData),
@@ -54,7 +54,7 @@ function RecipeManager() {
       })
       .catch(err => console.error(err));
     } else{
-      fetch('http://localhost:3000/api/recipes', {
+      fetch(`${import.meta.env.VITE_API_URL}/api/recipes`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(recipeData),

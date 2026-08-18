@@ -139,13 +139,30 @@ is set up in Section 1, before any app code, and used throughout.
          crashes partway through, before its own cleanup code runs. Point
          the test suite at it via environment config; confirm the existing
          6 tests still pass against it.
-   - [ ] 7.8 Commit and push.
+   - [x] 7.8 Commit and push.
 8. **Live deployment.** Deploy frontend, backend, and database to Render,
    reachable at a real public URL.
    *Deliverable: the MVP bar from `project.md` — live, on the real
    internet, behind a login.*
+   - [x] 8.1 Replace every hardcoded `http://localhost:3000` fetch URL
+         (frontend) and the hardcoded CORS origin (backend) with
+         environment-variable-driven config, so the same code works
+         locally today and in production later without edits.
+   - [x] 8.2 Create a Render PostgreSQL database; migrate the schema +
+         seed data onto it via `psql`; confirm connectivity from the
+         local machine.
+   - [ ] 8.3 Deploy the Express backend as a Render Web Service, wired to
+         the new Postgres database via environment variables; confirm a
+         live API route responds over its public URL.
+   - [ ] 8.4 Deploy the React frontend as a Render Static Site, pointed at
+         the deployed backend's URL; confirm the live page loads.
+   - [ ] 8.5 Fix cross-origin cookies/CORS for the real HTTPS deployment
+         (CORS origin + cookie settings for the live frontend URL);
+         confirm logging in and loading the week works on the live site.
+   - [ ] 8.6 Confirm the full MVP end-to-end on the public URL: log in,
+         create a recipe, assign it to a day, refresh and see it
+         persisted; commit and push any final changes.
 
 ## Not yet broken down
 
-This is sections only, by design — no task-level steps inside each section
-yet. Break a section into tasks when you're about to start it, not before.
+Nothing currently — every section has task-level steps.
