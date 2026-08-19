@@ -176,7 +176,10 @@ Nothing currently — every section has task-level steps.
   recipe in `RecipeManager` updates *its* local state (and its own list
   renders correctly) but has no way to tell `App.jsx` to refetch, so the
   `<select>` dropdown used for assigning a recipe to a day keeps showing
-  stale data until a full page refresh. Likely fix: lift the `recipes`
-  state up into `App.jsx` alone and pass it (plus a refresh callback) down
-  into `RecipeManager` as props — same "child signals parent via a callback
-  prop" pattern already used for `onLogin`.
+  stale data until a full page refresh. Fix (worked out 2026-08-18, not yet
+  applied): lift the `recipes` state up into `App.jsx` alone, and pass both
+  `recipes` and `setRecipes` down into `RecipeManager` as props. No change
+  needed to `RecipeManager`'s existing create/edit/delete handlers — they
+  already call `setRecipes(...)` with the correct immutable updates
+  (`[...recipes, newRecipe]`, `.filter(...)`, `.map(...)`); only *where*
+  that state lives changes, from two separate copies to one shared one.
