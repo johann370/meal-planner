@@ -85,7 +85,7 @@ The React app (task 2.1), scaffolded with Vite. Separate folder from the repo ro
 
 ---
 
-*Last updated: 2026-08-18 — task 8.5 (no repo files changed; backend's live
-`CORS_ORIGIN` env var fixed to match the deployed frontend's exact origin —
-the app's actual known behavior, `app.js:24`'s `cors({ origin: process.env.CORS_ORIGIN, ... })`,
-is unchanged, only its deployed *value* was wrong).*
+*Last updated: 2026-08-18 — task 8.6 (no repo files changed; final live
+end-to-end MVP confirmation on the public site — every file in this map
+that's part of the running app is now proven working together, deployed,
+on the real internet).*

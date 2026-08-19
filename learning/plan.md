@@ -159,7 +159,7 @@ is set up in Section 1, before any app code, and used throughout.
    - [x] 8.5 Fix cross-origin cookies/CORS for the real HTTPS deployment
          (CORS origin + cookie settings for the live frontend URL);
          confirm logging in and loading the week works on the live site.
-   - [ ] 8.6 Confirm the full MVP end-to-end on the public URL: log in,
+   - [x] 8.6 Confirm the full MVP end-to-end on the public URL: log in,
          create a recipe, assign it to a day, refresh and see it
          persisted; commit and push any final changes.
 
