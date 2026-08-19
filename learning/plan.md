@@ -163,6 +163,23 @@ is set up in Section 1, before any app code, and used throughout.
          create a recipe, assign it to a day, refresh and see it
          persisted; commit and push any final changes.
 
+9. **Bug fix — shared recipe state.** Lift `recipes` state up out of
+   `RecipeManager` and into `App`, the one place that already owns it,
+   so both components read/write the same data instead of two separate
+   copies that drift apart.
+   *Deliverable: creating/editing a recipe shows up immediately in the
+   day-assignment dropdown, no page refresh needed.*
+   - [x] 9.1 Update `App.jsx`: pass `recipes` and `setRecipes` down into
+         `<RecipeManager>` as props (`App` already owns this state).
+   - [x] 9.2 Update `RecipeManager.jsx`: receive `recipes`/`setRecipes` as
+         props instead of keeping its own copy — remove its own
+         `useState`, `fetchRecipes` `useEffect`, and the now-redundant
+         fetch, since `App` already fetches recipes on login.
+   - [x] 9.3 Confirm locally: create a recipe in Manage Recipes and check
+         the day-assignment dropdown updates immediately, no refresh.
+   - [ ] 9.4 Commit and push; confirm the same fix works on the live
+         deployed site (Render auto-redeploys the frontend from GitHub).
+
 ## Not yet broken down
 
 Nothing currently — every section has task-level steps.

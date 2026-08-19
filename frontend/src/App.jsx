@@ -65,7 +65,7 @@ function App() {
           </select>
         </li>)))}
      </ul>
-     <RecipeManager />
+     <RecipeManager recipes={recipes} setRecipes={setRecipes} />
     </>
   )
 }

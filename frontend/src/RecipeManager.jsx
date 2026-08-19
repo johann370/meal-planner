@@ -1,19 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
-function RecipeManager() {
-  const [recipes, setRecipes] = useState([]);
+function RecipeManager({recipes, setRecipes}) {
   const [title, setTitle] = useState('');
   const [ingredients, setIngredients] = useState('');
   const [instructions, setInstructions] = useState('');
   const [editingId, setEditingId] = useState(null);
-
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/recipes`, {
-      credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => setRecipes(data));
-  }, [])
 
   function handleDelete(id) {
     fetch(`${import.meta.env.VITE_API_URL}/api/recipes/${id}`, {
