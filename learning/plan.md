@@ -166,3 +166,17 @@ is set up in Section 1, before any app code, and used throughout.
 ## Not yet broken down
 
 Nothing currently — every section has task-level steps.
+
+## Known issues (found, not yet fixed)
+
+- **Stale recipe list in the day-assignment dropdown.** Found by the user
+  2026-08-18. `App.jsx` and `RecipeManager.jsx` each keep their *own*
+  independent `recipes` state, fetched separately. `App.jsx` only fetches
+  once, in a `useEffect` keyed on `[loggedIn]` — so creating/editing a
+  recipe in `RecipeManager` updates *its* local state (and its own list
+  renders correctly) but has no way to tell `App.jsx` to refetch, so the
+  `<select>` dropdown used for assigning a recipe to a day keeps showing
+  stale data until a full page refresh. Likely fix: lift the `recipes`
+  state up into `App.jsx` alone and pass it (plus a refresh callback) down
+  into `RecipeManager` as props — same "child signals parent via a callback
+  prop" pattern already used for `onLogin`.
