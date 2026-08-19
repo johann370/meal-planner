@@ -85,7 +85,6 @@ The React app (task 2.1), scaffolded with Vite. Separate folder from the repo ro
 
 ---
 
-*Last updated: 2026-08-18 — task 8.3 (`backend/app.js` and `backend/index.js`
-updated for Render: `DATABASE_URL`-aware `poolConfig`, `process.env.PORT`-aware
-`app.listen`; a real Render Web Service now exists, deployed and confirmed
-live end-to-end over its public HTTPS URL).*
+*Last updated: 2026-08-18 — task 8.4 (no frontend files changed; a real Render
+Static Site now exists, built from `frontend/` with `VITE_API_URL` pointed at
+the live backend, page load confirmed over its public HTTPS URL).*

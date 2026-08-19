@@ -154,7 +154,7 @@ is set up in Section 1, before any app code, and used throughout.
    - [x] 8.3 Deploy the Express backend as a Render Web Service, wired to
          the new Postgres database via environment variables; confirm a
          live API route responds over its public URL.
-   - [ ] 8.4 Deploy the React frontend as a Render Static Site, pointed at
+   - [x] 8.4 Deploy the React frontend as a Render Static Site, pointed at
          the deployed backend's URL; confirm the live page loads.
    - [ ] 8.5 Fix cross-origin cookies/CORS for the real HTTPS deployment
          (CORS origin + cookie settings for the live frontend URL);
