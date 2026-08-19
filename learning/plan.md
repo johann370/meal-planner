@@ -156,7 +156,7 @@ is set up in Section 1, before any app code, and used throughout.
          live API route responds over its public URL.
    - [x] 8.4 Deploy the React frontend as a Render Static Site, pointed at
          the deployed backend's URL; confirm the live page loads.
-   - [ ] 8.5 Fix cross-origin cookies/CORS for the real HTTPS deployment
+   - [x] 8.5 Fix cross-origin cookies/CORS for the real HTTPS deployment
          (CORS origin + cookie settings for the live frontend URL);
          confirm logging in and loading the week works on the live site.
    - [ ] 8.6 Confirm the full MVP end-to-end on the public URL: log in,

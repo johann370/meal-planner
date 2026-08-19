@@ -85,6 +85,7 @@ The React app (task 2.1), scaffolded with Vite. Separate folder from the repo ro
 
 ---
 
-*Last updated: 2026-08-18 — task 8.4 (no frontend files changed; a real Render
-Static Site now exists, built from `frontend/` with `VITE_API_URL` pointed at
-the live backend, page load confirmed over its public HTTPS URL).*
+*Last updated: 2026-08-18 — task 8.5 (no repo files changed; backend's live
+`CORS_ORIGIN` env var fixed to match the deployed frontend's exact origin —
+the app's actual known behavior, `app.js:24`'s `cors({ origin: process.env.CORS_ORIGIN, ... })`,
+is unchanged, only its deployed *value* was wrong).*
