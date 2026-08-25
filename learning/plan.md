@@ -177,26 +177,28 @@ is set up in Section 1, before any app code, and used throughout.
          fetch, since `App` already fetches recipes on login.
    - [x] 9.3 Confirm locally: create a recipe in Manage Recipes and check
          the day-assignment dropdown updates immediately, no refresh.
-   - [ ] 9.4 Commit and push; confirm the same fix works on the live
+   - [x] 9.4 Commit and push; confirm the same fix works on the live
          deployed site (Render auto-redeploys the frontend from GitHub).
 
 ## Not yet broken down
 
 Nothing currently — every section has task-level steps.
 
-## Known issues (found, not yet fixed)
+## Known issues (fixed)
 
 - **Stale recipe list in the day-assignment dropdown.** Found by the user
-  2026-08-18. `App.jsx` and `RecipeManager.jsx` each keep their *own*
-  independent `recipes` state, fetched separately. `App.jsx` only fetches
+  2026-08-18. `App.jsx` and `RecipeManager.jsx` each kept their *own*
+  independent `recipes` state, fetched separately. `App.jsx` only fetched
   once, in a `useEffect` keyed on `[loggedIn]` — so creating/editing a
-  recipe in `RecipeManager` updates *its* local state (and its own list
-  renders correctly) but has no way to tell `App.jsx` to refetch, so the
-  `<select>` dropdown used for assigning a recipe to a day keeps showing
-  stale data until a full page refresh. Fix (worked out 2026-08-18, not yet
-  applied): lift the `recipes` state up into `App.jsx` alone, and pass both
-  `recipes` and `setRecipes` down into `RecipeManager` as props. No change
-  needed to `RecipeManager`'s existing create/edit/delete handlers — they
-  already call `setRecipes(...)` with the correct immutable updates
-  (`[...recipes, newRecipe]`, `.filter(...)`, `.map(...)`); only *where*
-  that state lives changes, from two separate copies to one shared one.
+  recipe in `RecipeManager` updated *its* local state (and its own list
+  rendered correctly) but had no way to tell `App.jsx` to refetch, so the
+  `<select>` dropdown used for assigning a recipe to a day kept showing
+  stale data until a full page refresh. Fixed 2026-08-19 (Section 9,
+  tasks 9.1–9.4): lifted the `recipes` state up into `App.jsx` alone, and
+  passed both `recipes` and `setRecipes` down into `RecipeManager` as
+  props. No change was needed to `RecipeManager`'s existing create/edit/
+  delete handlers — they already called `setRecipes(...)` with the
+  correct immutable updates (`[...recipes, newRecipe]`, `.filter(...)`,
+  `.map(...)`); only *where* that state lived changed, from two separate
+  copies to one shared one. Confirmed fixed both locally and on the live
+  Render site.
