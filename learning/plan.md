@@ -356,7 +356,7 @@ is set up in Section 1, before any app code, and used throughout.
           **Completed 2026-08-28.** Confirmed live: styled, centered
           cookbook card renders on click, Close returns cleanly to the
           recipe list.
-    - [ ] 11.5 Commit and push.
+    - [x] 11.5 Commit and push. **Done 2026-08-28** — pushed as `cef49e8`.
 
 ## Dev tooling improvements
 
