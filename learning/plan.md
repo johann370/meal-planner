@@ -303,6 +303,61 @@ is set up in Section 1, before any app code, and used throughout.
           live in the browser: 14 items rendered under the recipe list,
           no manual refresh needed.
 
+11. **Cookbook-style recipe view.** Chosen 2026-08-28 from `project.md`'s
+    rated parking lot (Low difficulty, Medium importance — pure
+    frontend/CSS on data that already exists, no new backend concepts).
+    Display a recipe's instructions as a proper readable page
+    (title/ingredients/steps laid out like a cookbook), not just a raw
+    list in the management form.
+    *Deliverable: clicking a recipe opens a real, readable cookbook page
+    for it — not the edit form — that you could actually cook from.*
+    - [x] 11.1 Frontend: new read-only `RecipeView.jsx` component — takes
+          a `recipe` prop, displays its title, ingredients, and
+          instructions in a clean layout (basic markup first, not styled
+          yet).
+          **Completed 2026-08-28.** First component in the app with zero
+          hooks — pure presentational, all data arrives via props. Both
+          `TODO(you)` blanks self-authored correct on the first try:
+          `ingredient.id` as the key (correctly distinguishing this
+          dataset — real recipe rows from `GET /api/recipes` — from
+          task 10.7's grouped, id-less grocery-list data) and the
+          familiar quantity/unit/name display line.
+    - [x] 11.2 Frontend: wire it into `RecipeManager.jsx` — clicking a
+          recipe's title opens its cookbook view (a new `viewingRecipe`
+          state), with a way to close it back to the list.
+          **Completed 2026-08-28.** Structural wiring (state, the
+          `if (viewingRecipe) return <RecipeView .../>` early-return
+          pattern, echoing `App.jsx`'s own `if (!loggedIn)` gate)
+          guide-authored; the one self-authored blank (the title's
+          `onClick`) initially passed `true` instead of `recipe` —
+          self-spotted and fixed *before* ever running it, once asked to
+          trace what `RecipeView` would do with a boolean instead of a
+          real recipe object (`true.ingredients.map(...)` → a real
+          crash, not silent failure). Confirmed live: click opens the
+          view, Close returns to the list.
+    - [x] 11.3 Frontend: style `RecipeView` properly (real cookbook-page
+          CSS — heading, a clear ingredient list, a readable instructions
+          block).
+          **Completed 2026-08-28.** Scope question raised and answered
+          first: instructions are still a single-line `<input>` (HTML
+          text inputs can't hold line breaks), so multi-line "steps"
+          styling was explicitly out of scope for this task, kept tight
+          on request rather than silently expanded. Self-authored
+          `.recipe-view`'s `border`/`max-width`/`padding`, mirroring the
+          existing `.day` class. Hit a real gap live: `max-width: 80%`
+          alone didn't center the block — correctly reasoned, when
+          asked, that a block element defaults to the *left* side; once
+          pointed at `margin` as the actual positioning property, landed
+          on `margin: 0 auto` (the explicit, more idiomatic form, after
+          confirming the shorthand `margin: auto` also worked).
+    - [x] 11.4 Confirm the deliverable end-to-end: click into a recipe,
+          see a real readable cookbook page, close it, back to managing
+          recipes.
+          **Completed 2026-08-28.** Confirmed live: styled, centered
+          cookbook card renders on click, Close returns cleanly to the
+          recipe list.
+    - [ ] 11.5 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -328,6 +383,13 @@ requested directly rather than as a plan task, recorded the same way.
 
 ## Not yet broken down
 
+- **Multi-line recipe instructions (`<textarea>` upgrade).** Flagged
+  2026-08-28 during task 11.3: `RecipeManager.jsx`'s instructions field
+  is a single-line `<input>`, which can't hold line breaks at all, so a
+  recipe's instructions can only ever be one run-on line — the cookbook
+  view's instructions styling has nothing real to show off yet. Raised
+  and deliberately deferred to keep task 11.3 scoped to just `RecipeView`
+  styling. Not yet turned into a task.
 - **Unit-name case sensitivity in `/api/grocery-list`'s `GROUP BY`.**
   Flagged 2026-08-28 during task 10.6: `GROUP BY` matches text exactly,
   so "Pound" (Spaghetti's unit) and "pound" (everything else) stayed

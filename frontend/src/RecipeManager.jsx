@@ -1,10 +1,12 @@
 import { useState, Fragment } from 'react';
+import RecipeView from './RecipeView.jsx';
 
 function RecipeManager({recipes, setRecipes}) {
   const [title, setTitle] = useState('');
   const [ingredients, setIngredients] = useState([{"name": "", "quantity": "", "unit": ""}]);
   const [instructions, setInstructions] = useState('');
   const [editingId, setEditingId] = useState(null);
+  const [viewingRecipe, setViewingRecipe] = useState(null);
 
   function handleDelete(id) {
     fetch(`${import.meta.env.VITE_API_URL}/api/recipes/${id}`, {
@@ -61,13 +63,17 @@ function RecipeManager({recipes, setRecipes}) {
     }
   }
 
+  if (viewingRecipe) {
+    return <RecipeView recipe={viewingRecipe} onClose={() => setViewingRecipe(null)} />;
+  }
+
   return (
     <div className="recipe-manager">
       <h2>Manage Recipes</h2>
       <ul>
         {recipes.map(recipe => (
           <li key={recipe.id} className="recipe">
-            {recipe.title}
+            <span onClick={() => setViewingRecipe(recipe)} style={{cursor: 'pointer'}}>{recipe.title}</span>
             <ul>
               {recipe.ingredients.map(ingredient => (
                 <li key={ingredient.id}>

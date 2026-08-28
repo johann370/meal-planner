@@ -67,12 +67,13 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 | HTTP status code semantics (`200 OK` vs. `201 Created` vs. others as *meaning*, not just "success/fail") | understood | 2026-08-16 | 2026-08-16 | Unprompted, spotted that `POST /api/recipes` returned `200` and asked whether `201 Created` would be more correct for a route that makes a new resource — the right convention, reasoned to independently, not something the plan asked for. Self-authored the fix (`res.status(201).json(...)` in `app.js`) and updated the test's expectation to match |
 | Resource cleanup / open handles (why a process won't exit until things like DB connections are closed) | understood | 2026-08-16 | 2026-08-16 | Correctly diagnosed, unprompted, that the `pg` `Pool`'s open database connections were what kept Jest's process alive after tests finished — reasoned to this before being told. Fix (`app.pool.end()` in `afterAll`) confirmed working: the warning was gone on rerun |
 | CSS layout: Flexbox (`display:flex`, `flex-wrap`, `justify-content`, `flex: 1`) | practicing | 2026-08-14 | 2026-08-14 | Authored `.week`/`.day` flex layout independently; predicted resize behavior, observed real shrink-before-wrap mechanic (flex-basis:0 + min-width:auto floor), gap explained |
+| CSS block-level centering (`margin: 0 auto` — a block element's `margin` defaults to `0`, which is *why* it hugs the left edge on its own; setting left/right margins to `auto` instead splits the container's leftover horizontal space evenly between both sides) | practicing | 2026-08-28 | 2026-08-28 | Section 11: self-authored `.recipe-view`'s `border`/`max-width`/`padding` (mirroring `.day`) correctly, but `max-width: 80%` alone left it stuck to the left. Correctly reasoned, when asked, that a block element defaults left; the fix itself (`margin` as the relevant property, `auto` as the centering value) was guide-explained, not self-derived — but then self-refined from the shorthand `margin: auto` to the more explicit `margin: 0 auto` unprompted, confirmed live |
 | HTML document structure (doctype, head/body, tags, valid nesting) | practicing | 2026-08-14 | 2026-08-14 | Authored `index.html` independently (no scaffold used) — valid doctype/head/body, 7 correctly-nested `<li><h2><p>` day entries, all real content |
 | Block-level default rendering (headings/paragraphs stack; one bullet per `<li>`) | introduced | 2026-08-14 | 2026-08-14 | Predicted 2 lines per day (correct) and bullet placement (guessed "spans both lines," actual is "anchors to first line only") — gap explained |
 | Controlled form inputs / elements (`value`/`onChange`, `<select>`+`<option>`) | practicing | 2026-08-16 | 2026-08-16 | Introduced via `<input>` (guide-authored, not yet self-written). Reinforced same day: authored a `<select onChange=...>` with `recipes.map()` into `<option>` elements solo, correct on the first try — generalized the pattern to a new element type without being shown it first |
 | Immutable array updates (spread to append, `.filter()` to remove, `.map()` to replace-in-place) | practicing | 2026-08-16 | 2026-08-16 | Authored `setRecipes([...recipes, newRecipe])` on create and `setRecipes(recipes.filter(recipe => recipe.id !== id))` on delete (the delete one self-written past a hint, correctly reasoning to check `response.status === 204` first); the replace-in-place `.map()` on edit was copied from a hint with a leftover `: r` typo, self-diagnosed and fixed after a console error |
 | Debugging via browser DevTools console errors | practicing | 2026-08-16 | 2026-08-16 | Guided to check the console for the first bug (`setRecipe is not defined`), read the exact error, and correctly reasoned that the POST had already reached the server before the broken `.then()` ran — the response handling failed, not the request. Found and fixed a second, similar typo (`: r` → `: recipe`) independently |
-| Multi-component composition (splitting UI into separate components, importing/rendering one inside another) | practicing | 2026-08-16 | 2026-08-28 | `RecipeManager` split out of `App` as a second component; the guide wrote the import + `<RecipeManager />` wiring in `App.jsx` and explained why (separate concerns, `App` doesn't need to know how recipe management works internally) — not yet self-authored. Reinforced 8/18: diagnosing a real bug (stale recipe list in the day-assignment dropdown) required reasoning about *why* two sibling components — `App` and `RecipeManager` — each having their own separate `recipes` state causes them to drift out of sync. Reinforced 8/28 (task 10.7): a third component, `GroceryList`, self-authored solo (own `useState`/`useEffect`/`fetch`, mirroring `RecipeManager`'s shape) — import + render wiring in `App.jsx` still guide-authored, matching the established mechanical-step split |
+| Multi-component composition (splitting UI into separate components, importing/rendering one inside another) | practicing | 2026-08-16 | 2026-08-28 | `RecipeManager` split out of `App` as a second component; the guide wrote the import + `<RecipeManager />` wiring in `App.jsx` and explained why (separate concerns, `App` doesn't need to know how recipe management works internally) — not yet self-authored. Reinforced 8/18: diagnosing a real bug (stale recipe list in the day-assignment dropdown) required reasoning about *why* two sibling components — `App` and `RecipeManager` — each having their own separate `recipes` state causes them to drift out of sync. Reinforced 8/28 (task 10.7): a third component, `GroceryList`, self-authored solo (own `useState`/`useEffect`/`fetch`, mirroring `RecipeManager`'s shape) — import + render wiring in `App.jsx` still guide-authored, matching the established mechanical-step split. Reinforced again same day (Section 11): a fourth component, `RecipeView`, introduced a new shape — a purely *presentational* component with no hooks at all, all data arriving via props (`recipe`, `onClose`) from `RecipeManager`. Wired in via the same `if (condition) return <Component .../>` early-return pattern already seen in `App.jsx`'s login gate. One real bug caught before ever running: the title's `onClick` initially called `setViewingRecipe(true)` instead of `setViewingRecipe(recipe)` — self-spotted and fixed once asked to trace what `RecipeView` would do with a boolean instead of the real object |
 | Lifting state up (two components needing the same data share *one* copy of it, owned by their common parent, passed down as props — including the setter function itself, not just the value) | understood | 2026-08-18 | 2026-08-19 | Diagnosing the stale-dropdown bug, correctly reasoned unprompted that `RecipeManager`'s existing `setRecipes(...)` calls would stop working if `recipes` became a read-only prop — then, from one guiding question, correctly concluded "you would have to pass both recipes and setRecipes" down from `App`. Correctly recognized `RecipeManager`'s existing immutable-update logic (`[...recipes, newRecipe]`, `.filter()`, `.map()`) wouldn't need to change at all — only where the state itself lives. Task 9.1: self-authored `<RecipeManager recipes={recipes} setRecipes={setRecipes} />` in `App.jsx`, correct on the first try; correctly predicted (once redirected from a premature guess about a missing-`setRecipes` crash) that passing the props then would have *no visible effect yet*, since `RecipeManager`'s function signature didn't take a `props` parameter at all — reasoning precisely that unread props just arrive and sit unused. Task 9.2: self-authored the other half solo, ahead of guidance — changed `RecipeManager`'s signature to `({recipes, setRecipes})`, deleted its own now-redundant `useState`, and (once prompted to remove the matching fetch) deleted the whole `useEffect` plus its now-unused `useEffect` import, unprompted. Correctly predicted, before running, that the visible recipe list would look identical afterward "since its the same data, just being retrieved in a different spot" — correctly separating *where data lives* from *what renders*. Task 9.3: correctly predicted, unprompted, that the day-assignment dropdown would now update live with no refresh, reasoning "since the recipes are being passed down as a prop" — confirmed live locally (backend + frontend both run for the first time this session), closing the loop on the original 8/18 stale-dropdown bug end to end. Reinforced 8/28 (task 10.7): applied the concept in reverse, correctly and unprompted — reasoned that the new `GroceryList` component *doesn't* need its state lifted into `App`, since it's the only component that will ever read it, correctly identifying that the original bug was specifically about *two* components sharing one copy of data, not a general rule that all state must live in `App` |
 | Extracting reusable functions (naming shared logic instead of duplicating it) | practicing | 2026-08-16 | 2026-08-16 | Guide pulled the week fetch out into a named `fetchWeek()` (used by both the initial `useEffect` and, later, `handleAssign`) and explained why. Self-generalized the same move unprompted: wrote a matching `fetchRecipes()` function rather than an inline fetch, mirroring the pattern without being told to |
 | Environment-based config switching (reading `NODE_ENV` to pick which `.env` file `dotenv` loads, via its `path` option) | understood | 2026-08-17 | 2026-08-17 | Reasoned through the chicken-and-egg problem unprompted (can't read `NODE_ENV` *from* `.env` to decide which file to load, since deciding requires reading it first) once asked to trace the order of operations — correctly concluded `NODE_ENV` must come from *outside* the file (Jest sets it directly). Self-authored the full `if (process.env.NODE_ENV === 'test') {...} else {...}` conditional around `dotenv.config()` in `app.js`, correct on the first try |
@@ -153,30 +154,31 @@ in a planning chat isn't the same as using the thing or passing a real quiz.
 
 ---
 
-*Last updated: 2026-08-28 — task 10.7 complete, Section 10 (structured
-ingredients + grocery list) now fully done: new `GroceryList.jsx`
-component fetches and displays the combined list, confirmed live (14
-items, no refresh needed). Correctly reasoned unprompted, before writing
-any code, that this component's state should stay local rather than get
-lifted into `App` — the opposite conclusion from Section 9, correctly
-distinguishing "one reader" from "two readers drifting out of sync."
-Landed the right `key` (`name`+`unit`, matching the query's actual
-`GROUP BY` columns) on the third attempt, past two wrong-but-reasoned
-tries (`name` alone, then `name`+`quantity`).
+*Last updated: 2026-08-28 — Section 11 (cookbook-style recipe view)
+complete, tasks 11.1-11.4: a new `RecipeView.jsx`, the app's first
+purely presentational component (no hooks, all data via props), wired
+into `RecipeManager.jsx` via a new `viewingRecipe` state and an
+early-return pattern echoing `App.jsx`'s own login gate. One real bug
+(passing `true` instead of the actual `recipe` object to the state
+setter) caught by reasoning before ever running the code. Styled with a
+centered card layout, hitting a genuine CSS gap along the way — a block
+element's default-left positioning, fixed via `margin: 0 auto` — and
+self-refining from the shorthand to the more explicit form unprompted.
+A scope question (multi-line instructions needing a `<textarea>`) was
+raised and deliberately deferred, keeping the task tight. Confirmed live
+end-to-end.
 
-Task 10.6 closed the task before it: new `GET /api/grocery-list` route
-combines the week's ingredients via `GROUP BY` + `SUM()` — first use of
-SQL aggregation in the project, demonstrated live in `psql` before being
-wired into the route, confirmed via `curl`. A real data-quality gap
-surfaced but was parked, not fixed: `GROUP BY` treats "Pound" and
-"pound" as different values. Ad hoc dev-tooling work followed, outside
-the numbered plan: `nodemon` now auto-restarts the backend on save, and
-`requireAuth` bypasses login in local dev only (gated on the same "not
-on Render" signal `poolConfig` already uses, explicitly excluded from
-test mode) — confirmed via a session-less request succeeding and the
-full test suite still passing. Three future initiatives still flagged,
-not yet built: database migrations, refactoring the backend's `.then()`
-chains to `async`/`await`, and case-insensitive unit matching in the
-grocery list. Extending the dev-login bypass to the frontend's own
-`loggedIn` state was raised and explicitly declined — not a gap, a
-deliberate choice.*
+Section 10 (structured ingredients + grocery list) closed out the
+session before it: `GroceryList.jsx` fetches and displays the combined
+list; the backend's new `GET /api/grocery-list` route (`GROUP BY` +
+`SUM()`, first SQL aggregation in the project) was demonstrated live in
+`psql` before being wired in. Ad hoc dev-tooling work also landed:
+`nodemon` auto-restarts the backend on save, and `requireAuth` bypasses
+login in local dev only (gated on the same "not on Render" signal
+`poolConfig` already uses, excluded from test mode) — full test suite
+still passing. Four future initiatives now flagged, not yet built:
+database migrations, refactoring the backend's `.then()` chains to
+`async`/`await`, case-insensitive unit matching in the grocery list, and
+a `<textarea>` upgrade for multi-line recipe instructions. Extending the
+dev-login bypass to the frontend's own `loggedIn` state was raised and
+explicitly declined — not a gap, a deliberate choice.*

@@ -18,3 +18,19 @@
 .day h2 {
   border-bottom: 1px solid #ccc;
 }
+
+.recipe-view {
+  border: 1px solid #ccc;
+  max-width: 80%;
+  padding: 1em;
+  margin: 0 auto;
+}
+
+.recipe-view h2 {
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+}
+
+.recipe-view li {
+  margin-bottom: 5px;
+}
