@@ -391,7 +391,7 @@ is set up in Section 1, before any app code, and used throughout.
           it would update automatically "since week is in the dependency
           array, any time it is updated, the useEffect will run again" —
           confirmed live.
-    - [ ] 12.4 Commit and push.
+    - [x] 12.4 Commit and push. **Done 2026-08-28** — pushed as `1039aa6`.
 
 ## Dev tooling improvements
 
