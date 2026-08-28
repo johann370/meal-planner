@@ -1,6 +1,7 @@
 import {useState, useEffect} from 'react'
 import './App.css'
 import RecipeManager from './RecipeManager.jsx'
+import GroceryList from './GroceryList.jsx'
 import Login from './Login.jsx'
 
 function App() {
@@ -66,6 +67,7 @@ function App() {
         </li>)))}
      </ul>
      <RecipeManager recipes={recipes} setRecipes={setRecipes} />
+     <GroceryList />
     </>
   )
 }

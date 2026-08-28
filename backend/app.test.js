@@ -50,7 +50,7 @@ test('GET /api/week returns the expected shape once logged in', async () => {
 });
 
 test('POST /api/recipes actually creates a recipe', async () => {
-  const newRecipe = {title: 'Test Recipe', ingredients: 'test ingredients', instructions: 'test instructions'};
+  const newRecipe = {title: 'Test Recipe', ingredients: [{name: 'test ingredient', quantity: 1, unit: 'unit'}], instructions: 'test instructions'};
   const createResponse = await agent.post('/api/recipes').send(newRecipe);
 
   expect(createResponse.status).toBe(201);
@@ -73,7 +73,7 @@ test('PUT /api/week/:day actually assigns a recipe to a day', async () => {
   const originalRecipe = recipes.body.find(r => r.title === mondayBefore.meal);
 
   // Create a temporary recipe to assign to Monday.
-  const newRecipe = {title: 'Test Assignment Recipe', ingredients: 'x', instructions: 'x'};
+  const newRecipe = {title: 'Test Assignment Recipe', ingredients: [{name: 'x', quantity: 1, unit: 'x'}], instructions: 'x'};
   const createResponse = await agent.post('/api/recipes').send(newRecipe);
 
   const putResponse = await agent.put('/api/week/Monday').send({recipeId: createResponse.body.id});

@@ -50,6 +50,12 @@ app.post('/api/login', (req, res) => {
 });
 
 function requireAuth(req, res, next) {
+    // TODO(you): skip the check when running local dev — no DATABASE_URL
+    // (same signal poolConfig uses for "not on Render") AND not under Jest
+    // (NODE_ENV !== 'test', so the real 401 test still exercises real auth).
+    if (!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test') {
+        return next();
+    }
     if (req.session.authenticated) {
         next();
     } else {
@@ -70,8 +76,8 @@ app.get('/api/week', (req, res) => {
     });
 });
 
-app.get('/api/recipes', (req, res) => {
-    pool.query('SELECT * FROM recipes ORDER BY id')
+app.get('/api/grocery-list', (req, res) => {
+    pool.query('SELECT ingredients.name, ingredients.unit, SUM(ingredients.quantity) AS quantity FROM week_meal JOIN recipes ON week_meal.recipe_id = recipes.id JOIN ingredients ON ingredients.recipe_id = recipes.id GROUP BY ingredients.name, ingredients.unit ORDER BY ingredients.name')
     .then(result => {
         res.json(result.rows);
     })
@@ -81,24 +87,66 @@ app.get('/api/recipes', (req, res) => {
     });
 });
 
+app.get('/api/recipes', (req, res) => {
+    pool.query('SELECT * FROM recipes ORDER BY id')
+    .then(recipesResult => {
+        pool.query('SELECT * FROM ingredients ORDER BY id')
+        .then(ingredientsResult => {
+            const recipes = recipesResult.rows.map(recipe => ({
+                ...recipe,
+                ingredients: ingredientsResult.rows.filter(ingredient => ingredient.recipe_id === recipe.id)
+            }));
+            res.json(recipes);
+        });
+    })
+    .catch(err => {
+        console.error(err);
+        res.status(500).json({error: 'Internal server error'});
+    });
+});
+
 app.post('/api/recipes', (req, res) => {
     const {title, ingredients, instructions } = req.body;
-    pool.query('INSERT INTO recipes (title, ingredients, instructions) VALUES ($1, $2, $3) RETURNING *', [title, ingredients, instructions])
-    .then(result => res.status(201).json(result.rows[0]))
+    pool.query('INSERT INTO recipes (title, instructions) VALUES ($1, $2) RETURNING *', [title, instructions])
+    .then(recipeResult => {
+        const newRecipe = recipeResult.rows[0];
+        const insertPromises = ingredients.map(ingredient =>  pool.query('INSERT INTO ingredients (name, quantity, unit, recipe_id) VALUES ($1, $2, $3, $4) RETURNING *', [ingredient.name, ingredient.quantity, ingredient.unit, newRecipe.id]));
+
+        return Promise.all(insertPromises)
+        .then(ingredientsResult => {
+            newRecipe.ingredients = ingredientsResult.map(ingredient => ingredient.rows[0]);
+            res.status(201).json(newRecipe);
+        })
+    })
     .catch(err => res.status(500).json({error: err.message}));
 });
 
 app.put('/api/recipes/:id', (req, res) => {
     const {id} = req.params;
     const {title, ingredients, instructions } = req.body;
-    pool.query('UPDATE recipes SET title = $1, ingredients = $2, instructions = $3 WHERE id = $4 RETURNING *', [title, ingredients, instructions, id])
-    .then(result => res.json(result.rows[0]))
+    let updatedRecipe;
+    pool.query('UPDATE recipes SET title = $1, instructions = $2 WHERE id = $3 RETURNING *', [title, instructions, id])
+    .then((result) => {
+        updatedRecipe = result.rows[0];
+        return pool.query('DELETE FROM ingredients WHERE recipe_id = $1', [id])})
+    .then(() => {
+        const insertPromises = ingredients.map(ingredient => pool.query('INSERT INTO ingredients (name, quantity, unit, recipe_id) VALUES ($1, $2, $3, $4) RETURNING *', [ingredient.name, ingredient.quantity, ingredient.unit, id]));
+        return Promise.all(insertPromises);
+    })
+    .then(ingredientsResult => {
+        updatedRecipe.ingredients = ingredientsResult.map(ingredient => ingredient.rows[0]);
+        res.json(updatedRecipe);
+    }
+    )
     .catch(err => res.status(500).json({error: err.message}));
 });
 
 app.delete('/api/recipes/:id', (req, res) => {
     const {id} = req.params;
-    pool.query('DELETE FROM recipes WHERE id = $1 RETURNING *', [id])
+    pool.query('DELETE FROM ingredients WHERE recipe_id = $1', [id])
+    .then(() => {
+        return pool.query('DELETE FROM recipes WHERE id = $1 RETURNING *', [id]);
+    })
     .then(() => res.status(204).send())
     .catch(err => res.status(500).json({error: err.message}));
 });

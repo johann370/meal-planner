@@ -180,11 +180,185 @@ is set up in Section 1, before any app code, and used throughout.
    - [x] 9.4 Commit and push; confirm the same fix works on the live
          deployed site (Render auto-redeploys the frontend from GitHub).
 
+10. **Structured ingredients + grocery list.** Replace each recipe's single
+    free-text `ingredients` string with a real list of individual
+    ingredient rows (quantity + unit + name), then generate a grocery
+    list for the current week by combining matching ingredients across
+    all of that week's assigned recipes.
+    *Deliverable: a grocery list page that shows one real combined list
+    ("Eggs — 5") for whatever's assigned this week, not just recipes'
+    ingredients pasted one after another.*
+    - [x] 10.1 Design + create a new `ingredients` table (`recipe_id`
+          foreign key, `quantity`, `unit`, `name`); confirm with a test
+          insert + a `JOIN` back to an existing recipe in `psql`.
+    - [x] 10.2 Migrate the existing recipes' free-text `ingredients`
+          strings into rows in the new table; confirm every recipe still
+          has its ingredients, now structured, via a `SELECT`.
+    - [x] 10.3 Backend: update the recipe CRUD routes so ingredients are
+          read/written as a real list of `{quantity, unit, name}` objects
+          instead of one string; confirm via `curl`.
+          **Completed 2026-08-27.** `PUT /api/recipes/:id` finished:
+          updates the recipe's own columns, then deletes its existing
+          `ingredients` rows and inserts the new set fresh — same
+          wipe-and-replace shape as `POST`/`DELETE`. Confirmed live via
+          `curl` (including a real "does it actually wipe, not just add"
+          check: 1 ingredient → 2 different ones, old row gone, ids
+          fresh). Two real regressions surfaced and fixed while
+          confirming with the automated suite, both predating today:
+          (1) `meal_planner_test` was still missing the `ingredients`
+          table entirely — task 10.1's `CREATE TABLE` only ever ran
+          against the dev database; (2) `app.test.js`'s own test data
+          still sent `ingredients` as a plain string, stale since
+          `POST`/`GET`/`DELETE` were converted earlier in this task. Fixing
+          both surfaced a third, pre-existing issue: Monday's `week_meal`
+          row had a NULL `recipe_id` and 5 orphaned junk recipes
+          (`Test Recipe` ×4, `Test Assignment Recipe`) were sitting in
+          the test database — leftovers from some earlier test run that
+          crashed before reaching its own cleanup code. All fixed by
+          hand; full suite (6/6) passes clean as of this task's close.
+    - [x] 10.4 Frontend: rewrite the recipe form's single ingredients text
+          box into a repeatable list of quantity/unit/name rows (add/
+          remove an ingredient row); creating a recipe sends the array.
+          **Completed 2026-08-28.** `RecipeManager.jsx`'s create form
+          rewritten — `ingredients` state is now an array of
+          `{name, quantity, unit}` objects (starts as one blank row),
+          rendered via `.map()` into one `Fragment`-keyed group of 3
+          inputs per row, each wired to immutably update just its own
+          field. "Add Ingredient" appends a blank row (spread pattern);
+          "Delete Ingredient" removes one row via `.filter()` by index.
+          Both create/edit success-callback resets updated to the new
+          array shape. End-to-end deliverable confirmed live: created a
+          real 2-ingredient recipe (Flour/2/cups, Sugar/1/cup) through the
+          actual form — cleared correctly, new recipe appeared in the
+          list. Bonus discovery: clicking Edit on it correctly loaded
+          *both* ingredient rows back into the form, with no code written
+          for that in this task — because `GET /api/recipes` (task 10.3)
+          already returns `ingredients` as an array of
+          `{name, quantity, unit}` objects, the exact shape the form's
+          `.map()` expects, so `handleEditClick`'s
+          `setIngredients(recipe.ingredients)` needed no translation and
+          just worked. The earlier note below (task 10.5) assuming
+          edit-load was broken was wrong — revised accordingly.
+    - [x] 10.5 Frontend: fix display + editing everywhere ingredients show
+          up, so an existing recipe's structured ingredients load back
+          into the form correctly for editing.
+          **Scope revised 2026-08-28:** the edit-load half of this already
+          works (confirmed in task 10.4 — `handleEditClick` correctly
+          populates all ingredient rows, no fix needed). What's actually
+          still missing: the recipe `<li>` in the list (`RecipeManager.jsx`
+          line ~68-74) renders only `recipe.title` — no ingredients shown
+          anywhere except by clicking Edit. This task's real remaining
+          scope is adding a read-only ingredients display to that list.
+          **Completed 2026-08-28.** Added a nested `<ul>` inside each
+          recipe's `<li>`, mapping over `recipe.ingredients` — the first
+          list-inside-a-list in the app. Self-authored both blanks: the
+          `key` (`ingredient.id`, a real database id — a step up from the
+          index-based keys used everywhere else so far) and the display
+          template literal (`` `${quantity} ${unit} ${name}` ``).
+          Correctly predicted, unprompted, that the choice of `key` has
+          zero visual effect — confirmed live, every recipe's ingredients
+          now list correctly under its title.
+    - [x] 10.6 Backend: a `GET /api/grocery-list` route that joins the
+          current week's assigned recipes to their ingredients and
+          combines matching ones (same name/unit → quantities added
+          together); confirm via `curl`.
+          **Completed 2026-08-28.** New route added right after
+          `/api/week`: same 3-way `JOIN` shape (`week_meal` → `recipes` →
+          `ingredients`) extended with `GROUP BY ingredients.name,
+          ingredients.unit` + `SUM(ingredients.quantity)` — first use of
+          SQL aggregation in the project. Query demonstrated live in
+          `psql` first (21 raw rows → 14 grouped rows, `chicken breast`
+          collapsing 4 separate "1 pound" rows into one "4 pounds" row);
+          correctly predicted the collapsed row count and exact chicken-
+          breast total *before* seeing it run, then self-authored wiring
+          that same query into the route's `TODO(you)` blank, correct on
+          the first try. Hit two real, already-understood gaps live on
+          the way to confirming via `curl`: the running backend needed a
+          restart to pick up the new route at all (Node doesn't
+          file-watch like Vite), and that restart wiped the in-memory
+          session store, requiring a fresh login before the route would
+          respond. Final `curl` confirmed the exact predicted output: 14
+          items, `chicken breast` at `4`.
+    - [x] 10.7 Frontend: a new "Grocery List" page/view that fetches and
+          displays that combined list; commit and push.
+          **Completed 2026-08-28.** New `GroceryList.jsx` component,
+          mirroring `RecipeManager.jsx`'s shape (own `useState` +
+          `useEffect` + `fetch`) but read-only — self-authored all three
+          blanks: the fetch URL, the `key`, and the display line. First
+          attempt at the `key` used `item.name` alone; correctly
+          predicted (once asked) that two same-named-different-unit
+          ingredients would make React "silently misbehave, not crash"
+          — a real latent bug, not yet triggered by today's data, since
+          `GROUP BY` only guarantees `name`+`unit` unique together, not
+          `name` alone. Two more attempts before landing the fix: swapped
+          to `name`+`quantity` (still wrong — `quantity` is the `SUM()`
+          result, not a grouped column, so it carries no uniqueness
+          guarantee at all) before correctly landing on `name`+`unit`,
+          matching the query's actual `GROUP BY` clause. Design decision
+          made independently, correctly, before any code was written:
+          unlike `recipes`, the grocery list only has one reader, so it
+          correctly stays local component state — no lifting needed,
+          reasoning precisely from Section 9's stale-dropdown bug (two
+          components sharing data is what caused *that* bug). Confirmed
+          live in the browser: 14 items rendered under the recipe list,
+          no manual refresh needed.
+
+## Dev tooling improvements
+
+Ad hoc, outside the numbered build plan — real changes to the project,
+requested directly rather than as a plan task, recorded the same way.
+
+- [x] **Auto-reload the backend on save.** 2026-08-28: installed
+      `nodemon` as a devDependency; added `"dev": "nodemon index.js"` to
+      `backend/package.json`'s scripts, used instead of `node index.js`
+      for local development. Confirmed live: saving a backend file now
+      triggers an automatic restart, no more manual Ctrl+C/rerun.
+- [x] **Skip the login gate automatically in local dev.** 2026-08-28:
+      `requireAuth` (`backend/app.js`) now bypasses the auth check when
+      `!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test'` —
+      reusing the exact "are we on Render" signal `poolConfig` already
+      uses, with Jest explicitly excluded so the real 401/login tests
+      keep exercising real auth. Self-authored, confirmed via a direct
+      request with no session cookie succeeding locally, and the full
+      6-test suite still passing unchanged. Known, accepted gap: the
+      frontend's `loggedIn` state still defaults to `false`, so a full
+      page refresh still shows the login form once — only mid-session
+      401s after a backend restart are what this fixes; left as-is by
+      choice rather than also patching the frontend.
+
 ## Not yet broken down
 
-Nothing currently — every section has task-level steps.
+- **Unit-name case sensitivity in `/api/grocery-list`'s `GROUP BY`.**
+  Flagged 2026-08-28 during task 10.6: `GROUP BY` matches text exactly,
+  so "Pound" (Spaghetti's unit) and "pound" (everything else) stayed
+  separate rows instead of combining — a real data-quality gap, not a
+  query bug. Not in task 10.6's scope (case-insensitive matching was
+  never asked for) and not yet turned into a task.
+- **Database migrations.** Flagged 2026-08-27 after task 10.3 revealed
+  `meal_planner_test` was still missing the `ingredients` table — task
+  10.1's `CREATE TABLE` only ever ran by hand against the dev database,
+  and nothing kept the two in sync. A real migration tool (e.g.
+  `node-pg-migrate`) would replace "remember to run this SQL against
+  every database" with versioned scripts + one command that applies
+  whatever a given database is missing. Not yet turned into tasks.
+- **Refactor backend routes from `.then()` chains to `async`/`await`.**
+  Flagged 2026-08-27 during task 10.3: the `PUT /api/recipes/:id` route's
+  three chained `.then()`s directly caused that task's `updatedRecipe`
+  block-scoping bug (declared inside one `.then()` callback, invisible
+  in a later sibling callback) — a class of bug flat, sequential
+  `async`/`await` code avoids outright. Not yet started.
 
 ## Known issues (fixed)
+
+- **Task 10.5's edit-load half was already fixed by 10.4, not broken.**
+  `plan.md` originally flagged `handleEditClick`'s
+  `setIngredients(recipe.ingredients)` as known-broken and explicitly
+  deferred to task 10.5. Testing task 10.4's own deliverable (2026-08-28)
+  showed it actually works correctly with zero extra code — `GET
+  /api/recipes` (task 10.3) already returns `ingredients` as an array of
+  `{name, quantity, unit}` objects, the same shape the form expects, so
+  no translation was ever needed. Task 10.5's scope narrowed to just the
+  recipe list's missing ingredients display.
 
 - **Stale recipe list in the day-assignment dropdown.** Found by the user
   2026-08-18. `App.jsx` and `RecipeManager.jsx` each kept their *own*

@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react';
 
 function RecipeManager({recipes, setRecipes}) {
   const [title, setTitle] = useState('');
-  const [ingredients, setIngredients] = useState('');
+  const [ingredients, setIngredients] = useState([{"name": "", "quantity": "", "unit": ""}]);
   const [instructions, setInstructions] = useState('');
   const [editingId, setEditingId] = useState(null);
 
@@ -40,7 +40,7 @@ function RecipeManager({recipes, setRecipes}) {
         setRecipes(recipes.map(recipe => recipe.id === updatedRecipe.id ? updatedRecipe : recipe));
         setEditingId(null);
         setTitle('');
-        setIngredients('');
+        setIngredients([{"name": "", "quantity": "", "unit": ""}]);
         setInstructions('');
       })
       .catch(err => console.error(err));
@@ -54,7 +54,7 @@ function RecipeManager({recipes, setRecipes}) {
       .then(newRecipe => {
         setRecipes([...recipes, newRecipe]);
         setTitle('');
-        setIngredients('');
+        setIngredients([{"name": "", "quantity": "", "unit": ""}]);
         setInstructions('');
       })
       .catch(err => console.error(err));
@@ -68,6 +68,13 @@ function RecipeManager({recipes, setRecipes}) {
         {recipes.map(recipe => (
           <li key={recipe.id} className="recipe">
             {recipe.title}
+            <ul>
+              {recipe.ingredients.map(ingredient => (
+                <li key={ingredient.id}>
+                  {`${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`}
+                </li>
+              ))}
+            </ul>
             <button onClick={() => handleEditClick(recipe)}>Edit</button>
             <button onClick={() => handleDelete(recipe.id)}>Delete</button>
           </li>
@@ -76,7 +83,15 @@ function RecipeManager({recipes, setRecipes}) {
 
       <form onSubmit={handleSubmit}>
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" />
-        <input value={ingredients} onChange={e => setIngredients(e.target.value)} placeholder="Ingredients" />
+        {ingredients.map((ingredient, index) => 
+        <Fragment key={index}>
+          <input value={ingredient.name} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? {...ingredient, name: e.target.value} : ingredient))} placeholder="Ingredient Name"></input>
+          <input value={ingredient.quantity} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? {...ingredient, quantity: e.target.value} : ingredient))} placeholder="Quantity"></input>
+          <input value={ingredient.unit} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? {...ingredient, unit: e.target.value} : ingredient))} placeholder="Unit"></input>
+          <button type="button" onClick={() => setIngredients(ingredients.filter((ingredient, i) => i !== index))}>Delete Ingredient</button>
+        </Fragment>
+        )}
+        <button type="button" onClick={() => setIngredients([...ingredients, {"name": "", "quantity": "", "unit": ""}])}>Add Ingredient</button>
         <input value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Instructions" />
         <button type="submit">Add Recipe</button>
       </form>
