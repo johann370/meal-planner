@@ -67,7 +67,7 @@ function App() {
         </li>)))}
      </ul>
      <RecipeManager recipes={recipes} setRecipes={setRecipes} />
-     <GroceryList />
+     <GroceryList week={week} />
     </>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-function GroceryList() {
+function GroceryList({week}) {
   const [groceryList, setGroceryList] = useState([]);
 
   useEffect(() => {
@@ -9,7 +9,7 @@ function GroceryList() {
     })
     .then(response => response.json())
     .then(data => setGroceryList(data));
-  }, []);
+  }, [week]);
 
   return (
     <div className="grocery-list">

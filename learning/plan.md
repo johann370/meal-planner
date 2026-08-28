@@ -358,6 +358,41 @@ is set up in Section 1, before any app code, and used throughout.
           recipe list.
     - [x] 11.5 Commit and push. **Done 2026-08-28** — pushed as `cef49e8`.
 
+12. **Bug fix — stale grocery list.** Found by the user 2026-08-28.
+    `GroceryList.jsx` fetches `/api/grocery-list` in a `useEffect` with
+    an empty dependency array — runs once, on mount, and never again.
+    Since `GroceryList` mounts once (when `App` first renders after
+    login) and never unmounts, reassigning a day's recipe elsewhere in
+    the app (`handleAssign` in `App.jsx`) never triggers a refetch, so
+    the grocery list silently goes stale the moment any assignment
+    changes after initial load. Root cause correctly self-diagnosed
+    unprompted, reasoning directly from the already-understood
+    `useEffect([])` mechanic (task 4.3) applied to a case that hadn't
+    been tested that way before.
+    *Deliverable: reassigning a day's recipe updates the grocery list
+    immediately, no page refresh needed.*
+    - [x] 12.1 `App.jsx`: pass `week` down into `<GroceryList>` as a prop
+          (`App` already owns this state, and it changes exactly when
+          the grocery list needs to refresh).
+    - [x] 12.2 `GroceryList.jsx`: receive `week` as a prop and add it to
+          the `useEffect` dependency array, so the fetch reruns whenever
+          `week` changes — not just once on mount.
+          **Completed 2026-08-28** (12.1 and 12.2 done together, slightly
+          out of order — `GroceryList`'s `({week})` signature and the
+          `[week]` dependency array were self-authored first, before
+          `App.jsx` was actually updated to pass the prop down; both
+          gaps self-closed once named explicitly). Root cause correctly
+          self-diagnosed unprompted, reasoning precisely from the
+          already-understood `useEffect([])` mechanic: "an empty
+          dependency array means it only runs once."
+    - [x] 12.3 Confirm locally: reassign a day's recipe and check the
+          grocery list updates immediately, no refresh.
+          **Completed 2026-08-28.** Correctly predicted, unprompted, that
+          it would update automatically "since week is in the dependency
+          array, any time it is updated, the useEffect will run again" —
+          confirmed live.
+    - [ ] 12.4 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
