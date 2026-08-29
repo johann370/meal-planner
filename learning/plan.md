@@ -1098,7 +1098,13 @@ is set up in Section 1, before any app code, and used throughout.
           then two full live click-throughs of the whole app (the first
           predated the `created_at` regen and was premature; the second,
           after every fix, held).
-    - [ ] 15.7 Commit and push.
+    - [x] 15.7 Commit and push. **Done 2026-08-29** — pushed as `539f39c`.
+          Along the way, the 71 vendor AI-assistant reference doc files
+          `prisma init` had scattered into `.agents/`, `.claude/skills/`,
+          `.windsurf/skills/`, and `skills-lock.json` (task 15.1) were
+          added to `backend/.gitignore` rather than committed — real
+          content, but not code anyone on this project wrote, reads, or
+          maintains, so excluded the same way `node_modules` is.
 
 ## Dev tooling improvements
 
