@@ -7,6 +7,27 @@ function RecipeManager({recipes, setRecipes}) {
   const [instructions, setInstructions] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [viewingRecipe, setViewingRecipe] = useState(null);
+  const [importUrl, setImportUrl] = useState('');
+
+  function handleImport() {
+    fetch(`${import.meta.env.VITE_API_URL}/api/recipes/import-from-url`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url: importUrl})
+    })
+    .then(response => response.json())
+    .then(newRecipe => {
+      if(newRecipe.error){
+        alert(newRecipe.error);
+        return;
+      }
+
+      setRecipes([...recipes, newRecipe]);
+      setImportUrl('');
+    })
+    .catch(err => console.log(err))
+  }
 
   function handleDelete(id) {
     fetch(`${import.meta.env.VITE_API_URL}/api/recipes/${id}`, {
@@ -86,6 +107,11 @@ function RecipeManager({recipes, setRecipes}) {
           </li>
         ))}
       </ul>
+
+      <div>
+        <input value={importUrl} onChange={e => setImportUrl(e.target.value)} placeholder="Recipe URL" />
+        <button onClick={handleImport}>Import from URL</button>
+      </div>
 
       <form onSubmit={handleSubmit}>
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" />

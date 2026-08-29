@@ -393,6 +393,209 @@ is set up in Section 1, before any app code, and used throughout.
           confirmed live.
     - [x] 12.4 Commit and push. **Done 2026-08-28** — pushed as `1039aa6`.
 
+13. **Recipe parser from a URL.** Chosen 2026-08-28 from `project.md`'s
+    rated parking lot (Medium difficulty, Medium-High importance).
+    Paste a recipe website's URL, auto-fill title/ingredients/
+    instructions instead of typing them by hand. Most recipe sites embed
+    a standard, machine-readable `schema.org` Recipe format specifically
+    so tools like this can read them — scoping to that format keeps this
+    a fetch-and-parse job, not a general web scraper.
+    *Deliverable: paste a real recipe URL, click Import, and see a real
+    new recipe appear with correct title/ingredients/instructions —
+    saved into the actual database, not just previewed.*
+    - [x] 13.1 Backend: install `cheerio` (HTML parsing); using a real
+          recipe URL, fetch its HTML and extract the raw
+          `<script type="application/ld+json">` tag's content — confirm
+          via `console.log`/`curl` that it's really there.
+          **Completed 2026-08-28.** New `POST /api/recipes/import-from-url`
+          route (using a real, pre-verified test URL — a Budget Bytes
+          recipe). Self-authored the one blank
+          (`$('script[type="application/ld+json"]').first().html()`)
+          past a real, self-caught-before-testing bug: `.first` written
+          without its parentheses (correctly identified when asked to
+          compare against `.map()`/`.filter()`, always called with
+          parens elsewhere in the codebase). Confirmed live via `curl`:
+          real JSON comes back, but not just the recipe — a `"@graph"`
+          array of 8 different schema.org entity types (`Article`,
+          `WebPage`, `Recipe`, ...), setting up task 13.2's actual job
+          (finding the right one).
+    - [x] 13.2 Backend: parse that JSON-LD into `{title, ingredientsRaw,
+          instructions}` — pulling `name`, `recipeIngredient`, and
+          `recipeInstructions` out of the schema.org Recipe object;
+          confirm the extracted fields look right for a real test URL.
+          **Completed 2026-08-28.** Self-authored both blanks correct on
+          the first try: `jsonLd['@graph'].find(item => item['@type']
+          === 'Recipe')` (first self-authored `.find()` — previously
+          only seen guide-authored, task 7.5) and
+          `recipeData.recipeInstructions.map(i => i.text).join('\n')`
+          (first use of `.join()` in the project). Mispredicted
+          `ingredientsRaw`'s length as 1 "since its an array" — corrected
+          once asked to actually recount the real snippet shown moments
+          earlier; confirmed live via `curl`: title exact match, 10 real
+          ingredient strings, instructions correctly newline-joined.
+    - [x] 13.3 Backend: parse each raw ingredient line (e.g. "2 cups
+          flour") into `{quantity, unit, name}` via a simple regex-based
+          parser; confirm it handles a handful of real ingredient lines
+          correctly.
+          **Completed 2026-08-28.** First regex ever written in this
+          project, built in three small pieces against real data (10
+          actual ingredient lines from the Budget Bytes test recipe):
+          (1) `stripTrailingParenthetical` strips a trailing "($0.98)"-
+          style note — first attempt wrote `[^*]` (one non-`*`
+          character) instead of `[^)]*` (any run of non-`)` characters);
+          correctly predicted, once asked to compare the two, that it
+          wouldn't match a multi-character parenthetical, confirmed live.
+          (2) Quantity/unit/name split via `.split(/\s+/)` (destructuring
+          + rest, applied to a string split for the first time) — a real
+          double-space in the source data ("1  bulb garlic") broke a
+          naive `.split(' ')` first; correctly predicted the exact
+          failure (`unit` coming out empty) before it was run, fixed by
+          switching to a `\s+` regex. (3) Unicode fraction quantities
+          (¼, ½) converted to real decimals via a small lookup table and
+          a ternary fallback to `parseFloat` — since the `ingredients`
+          table's `quantity` column is `numeric` and would reject the
+          raw fraction characters otherwise. All 10 lines confirmed
+          correct, with genuine `number`-typed quantities. Extended on
+          request right after: `fractionMap` now also covers `⅛` (a
+          fourth glyph) plus a `"N/D"` text form (`'1/4'`, `'1/2'`,
+          `'3/4'`, `'1/8'`) for all four, in case a site writes fractions
+          as plain text instead of a Unicode glyph — both forms
+          confirmed working via a live test.
+    - [x] 13.4 Backend: new `POST /api/recipes/import-from-url` route —
+          fetch, parse, then reuse the existing recipe-creation logic to
+          actually save it; confirm via `curl` with a real URL.
+          **Completed 2026-08-28.** Extracted `POST /api/recipes`'s
+          existing insert logic into a shared `createRecipe()` function
+          (guide-authored relocation, preserving the student's own
+          original logic unchanged) so both routes reuse the exact same
+          save path instead of duplicating it — same "name the shared
+          logic" instinct already practiced on the frontend
+          (`fetchWeek`/`fetchRecipes`), now applied on the backend too.
+          Self-authored both call sites past one real, meaningful async
+          bug: `POST /api/recipes` first wrote
+          `const newRecipe = createRecipe(req.body); res.json(newRecipe)`
+          — correctly predicted, when asked, that `createRecipe(...)`
+          returns a `Promise` synchronously, not the actual recipe data;
+          self-fixed to the proper `.then()` chain. Confirmed via `npm
+          test` (all 6 tests still pass — the refactor didn't break
+          anything) and a real, correctly-predicted end-to-end `curl`
+          import: `201 Created`, a genuine saved recipe (10 correctly
+          parsed ingredients) now permanently in the dev database — kept
+          on request, a real usable recipe, not just test output.
+          **Extended on request right after:** tested against a second,
+          different site (Cookie and Kate's guacamole recipe) and found
+          a real, new failure mode — that site encodes fractions as HTML
+          entities (`&frac12;`) instead of a Unicode glyph or plain
+          text, producing `NaN` quantities. Fixed by extending
+          `fractionMap` with the entity forms for all four fractions,
+          same pattern as the earlier `⅛`/`"1/8"` addition. Confirmed
+          live: re-imported cleanly with correct decimal quantities.
+          Aside: manually running both a `curl -i | head -1` status
+          check *and* a full body-display `curl` back-to-back against a
+          `POST` route silently creates two real rows, not one — caused
+          3 duplicate/broken "Best Guacamole" recipes, cleaned up by
+          hand back down to one correct copy.
+          **Extended again on request:** tested a third real site
+          (Allrecipes) and hit a genuine `500` with a confusing raw
+          error (`Cannot read properties of null (reading '@graph')`).
+          Root-caused correctly, on the student's own machine (not just
+          the sandbox) via a raw `curl` + `grep` check: that site's
+          initial HTML genuinely has no `application/ld+json` tag at
+          all — its structured data is added client-side by JavaScript
+          after page load, which a plain `fetch()` never runs. A real
+          architectural limitation, not a parser bug, and out of scope
+          to fix (would need a headless browser). Self-authored a guard
+          — `if (!jsonLdText) throw new Error('Could not get recipe
+          data')` — so unsupported sites fail with a clear message
+          instead of a confusing crash; a thrown error inside a `.then()`
+          becomes a rejected promise automatically, so it still reaches
+          the route's existing `.catch()` unchanged. Confirmed live.
+          **Real-world coverage check, requested by the user:** tested
+          10 popular recipe sites total (Food Network, Bon Appétit,
+          Epicurious, Food.com, Pioneer Woman, Skinnytaste, Half Baked
+          Harvest, Smitten Kitchen, King Arthur Baking, Damn Delicious).
+          Roughly a third worked cleanly (King Arthur Baking joined
+          Budget Bytes and Cookie and Kate); the rest failed for a few
+          genuinely different reasons — no JSON-LD at all (most of the
+          big media-owned sites, JS-rendered like Allrecipes), or
+          JSON-LD present but with no `Recipe` type in it at all
+          (Skinnytaste, Half Baked Harvest — their recipe data comes
+          from some other, unexamined mechanism entirely). Each is a
+          bigger undertaking than this section's scope; documented as
+          real, known coverage limits rather than chased further.
+    - [x] 13.5 Frontend: a small "Import from URL" form in
+          `RecipeManager.jsx` (a URL input + button), posting to the new
+          route and adding the returned recipe to the shared `recipes`
+          state.
+          **Completed 2026-08-28.** Correctly reasoned, unprompted before
+          any code was written, that this control belongs *outside* the
+          existing create-recipe `<form>` — a direct callback to task
+          10.4's real "button defaults to type=submit" bug. Self-authored
+          `handleImport` past a real, self-caught syntax bug: a stray
+          comma split `fetch(url, {...})` into two disconnected pieces
+          (`fetch(url)` — a bare, option-less GET — and a dangling object
+          literal with `.then()` chained onto it, which would have
+          thrown `TypeError: {...}.then is not a function`); self-fixed
+          once asked to compare it against every other `fetch(...)` call
+          in the file. Confirmed live end-to-end through the real UI
+          against King Arthur Baking (kept, on request).
+
+          **Real bug found and fixed along the way:** `handleImport` had
+          no check for an error response — importing an unsupported site
+          (The Kitchn) pushed the backend's `{error: "..."}` object
+          straight into `recipes` as if it were a real recipe, and
+          rendering it crashed the whole page (`recipe.ingredients.map`
+          on an object with no `ingredients`) — reproduced and confirmed
+          live, a real blank-page crash, not hypothetical. Self-authored
+          an `if (newRecipe.error) { alert(...); return; }` guard,
+          correctly on the second pass (first pass silently swallowed
+          the error with no user feedback at all; added the `alert()`
+          once asked whether that was intended). Confirmed live: The
+          Kitchn now shows a clean alert instead of crashing.
+
+          **Backend hardened further along the way:** testing surfaced a
+          new site (The Kitchn) whose only `ld+json` tag has no `@graph`
+          wrapper at all (just a bare `WebPage` object) — a different
+          shape than any site seen before. Fixed with
+          `(jsonLd['@graph'] || [])` (fallback to an empty array so
+          `.find()` never crashes on `undefined`) plus a self-authored
+          `if (!recipeData) throw new Error(...)` guard mirroring the
+          existing `jsonLdText` guard from task 13.4 — the same "throw
+          inside `.then()` becomes a rejected promise" mechanic applied
+          a second time, unprompted recognition of the parallel. Testing
+          Minimalist Baker afterward hit the *same* already-fixed
+          category (JSON-LD present, no `Recipe` type) — confirming the
+          fix generalizes rather than being one-site-specific.
+          `SUPPORTED_SITES.md` corrected: Minimalist Baker and The Kitchn
+          moved from a misleading "not yet tested" note to their real,
+          confirmed "doesn't work" result.
+          **Extended once more, a real bug found unprompted:** importing
+          `https://www.budgetbytes.com/chicken-broccoli-casserole/`
+          showed a price leaking into an ingredient name —
+          `"cheddar cheese (shredded, (1 cup) $0.97****)"` has a
+          parenthetical *inside* a parenthetical, which
+          `stripTrailingParenthetical`'s `[^)]*` (can never cross *any*
+          `)`, including an inner one) couldn't reach past. Correctly
+          predicted the fix's effect before running it — swapping to
+          greedy `.*` would "get rid of everything at the end" — refined
+          into the precise mechanic (greedy match, then backtrack only
+          as far as the *last* `)` in the string) and self-authored the
+          one-character change. Confirmed live: the casserole imports
+          cleanly now, and every previously-tested ingredient line still
+          parses identically — no regressions.
+    - [x] 13.6 Confirm the deliverable end-to-end: paste a real recipe
+          URL, click Import, see the new recipe appear correctly in the
+          app.
+          **Completed 2026-08-28.** A dedicated, clean confirmation pass
+          (beyond the extensive testing already done across 13.4/13.5):
+          imported a fresh, not-yet-used Budget Bytes recipe
+          (Scallion Herb Chickpea Salad) through the real UI — appeared
+          at the bottom of the recipe list, and clicking into it opened
+          a correct `RecipeView` cookbook page (Section 11), confirming
+          the two features work together end-to-end, not just in
+          isolation.
+    - [ ] 13.7 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,

@@ -105,9 +105,53 @@ app.get('/api/recipes', (req, res) => {
     });
 });
 
-app.post('/api/recipes', (req, res) => {
-    const {title, ingredients, instructions } = req.body;
-    pool.query('INSERT INTO recipes (title, instructions) VALUES ($1, $2) RETURNING *', [title, instructions])
+const cheerio = require('cheerio');
+
+function stripTrailingParenthetical(str) {
+    return str.replace(/\s*\(.*\)\s*$/, '');
+}
+
+const fractionMap = {
+    '¼': 0.25, '1/4': 0.25, '&frac14;': 0.25,
+    '½': 0.5, '1/2': 0.5, '&frac12;': 0.5,
+    '¾': 0.75, '3/4': 0.75, '&frac34;': 0.75,
+    '⅛': 0.125, '1/8': 0.125, '&frac18;': 0.125,
+};
+
+function parseIngredient(raw) {
+    const cleaned = stripTrailingParenthetical(raw);
+    const [quantityRaw, unit, ...nameParts] = cleaned.split(/\s+/);
+    const quantity = fractionMap[quantityRaw] ? fractionMap[quantityRaw] : parseFloat(quantityRaw);
+    const name = nameParts.join(' ');
+    return { quantity, unit, name };
+}
+
+app.post('/api/recipes/import-from-url', (req, res) => {
+    const { url } = req.body;
+    fetch(url)
+    .then(response => response.text())
+    .then(html => {
+        const $ = cheerio.load(html);
+        const jsonLdText = $('script[type="application/ld+json"]').first().html()
+        if (!jsonLdText) {
+            throw new Error('Could not get recipe data');
+        }
+        const jsonLd = JSON.parse(jsonLdText);
+        const recipeData = (jsonLd['@graph'] || []).find(item => item['@type'] === 'Recipe');
+        if(!recipeData) {
+            throw new Error('Could not get recipe data');
+        }
+        const title = recipeData.name;
+        const ingredients = recipeData.recipeIngredient.map(ingredient => parseIngredient(ingredient));
+        const instructions = recipeData.recipeInstructions.map(instruction => instruction.text).join('\n');
+        return createRecipe({title, ingredients, instructions});
+    })
+    .then(newRecipe => res.status(201).json(newRecipe))
+    .catch(err => res.status(500).json({error: err.message}));
+});
+
+function createRecipe({title, ingredients, instructions}) {
+    return pool.query('INSERT INTO recipes (title, instructions) VALUES ($1, $2) RETURNING *', [title, instructions])
     .then(recipeResult => {
         const newRecipe = recipeResult.rows[0];
         const insertPromises = ingredients.map(ingredient =>  pool.query('INSERT INTO ingredients (name, quantity, unit, recipe_id) VALUES ($1, $2, $3, $4) RETURNING *', [ingredient.name, ingredient.quantity, ingredient.unit, newRecipe.id]));
@@ -115,9 +159,14 @@ app.post('/api/recipes', (req, res) => {
         return Promise.all(insertPromises)
         .then(ingredientsResult => {
             newRecipe.ingredients = ingredientsResult.map(ingredient => ingredient.rows[0]);
-            res.status(201).json(newRecipe);
-        })
-    })
+            return newRecipe;
+        });
+    });
+}
+
+app.post('/api/recipes', (req, res) => {
+    createRecipe(req.body)
+    .then(newRecipe => res.status(201).json(newRecipe))
     .catch(err => res.status(500).json({error: err.message}));
 });
 
