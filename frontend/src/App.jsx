@@ -1,8 +1,8 @@
 import {useState, useEffect} from 'react'
 import './App.css'
-import RecipeManager from './RecipeManager.jsx'
-import GroceryList from './GroceryList.jsx'
-import Login from './Login.jsx'
+import RecipeManager from './components/RecipeManager.jsx'
+import GroceryList from './components/GroceryList.jsx'
+import Login from './components/Login.jsx'
 
 function App() {
   const [selectedDay, setSelectedDay] = useState(null);

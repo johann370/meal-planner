@@ -596,6 +596,191 @@ is set up in Section 1, before any app code, and used throughout.
           isolation.
     - [x] 13.7 Commit and push. **Done 2026-08-28** — pushed as `285f7f0`.
 
+14. **Code cleanup / organization.** Requested 2026-08-28: stale
+    `TODO(you)` comments never got removed after being filled in,
+    `backend/app.js` has grown into one large file mixing config,
+    middleware, helper functions, and every route together in
+    whatever order they were historically added, and the frontend's
+    components all sit flat in `frontend/src/` with no folder
+    structure.
+    *Deliverable: the same app, behaving identically, but easier to
+    find your way around — no stale comments, backend concerns split
+    into their own files, frontend components grouped in a folder.*
+    - [x] 14.1 Backend: remove the 3 stale `TODO(you)` comments in
+          `app.js`/`index.js` that were already filled in and resolved
+          long ago (confirm each one's corresponding code is correct
+          before removing its comment).
+          **Completed 2026-08-28.** All 3 verified correct and complete
+          before removal: `index.js`'s `PORT`-vs-3000 branch (task 8.3),
+          `app.js`'s `poolConfig` branch (task 8.3), and `requireAuth`'s
+          local-dev bypass (ad hoc dev tooling). Confirmed nothing broke:
+          all 6 tests still pass, and a live `curl` against the running
+          server still returns real data.
+    - [x] 14.2 Backend: extract the recipe-import helpers
+          (`stripTrailingParenthetical`, `fractionMap`,
+          `parseIngredient`) into their own new file, imported back
+          into `app.js`.
+          **Completed 2026-08-28.** New `backend/recipeParser.js`
+          (guide-authored relocation, same shape as task 7.1's split),
+          exporting only `parseIngredient` — its two helpers stay
+          private, since nothing outside the file calls them directly.
+          Self-authored wiring it back into `app.js` past one real,
+          correctly-diagnosed bug: first attempt wrote
+          `require('recipeParser')` (no `./`) — Node would have looked
+          for an installed *package* by that name instead of the local
+          file, throwing "Cannot find module." Correctly predicted this,
+          unprompted, once asked to compare it against `require('cheerio')`
+          — a real npm package — versus the frontend's `./`-prefixed
+          local requires. Confirmed nothing broke: all 6 tests pass, and
+          both `parseIngredient` directly and `app.js` as a whole load
+          and produce identical results to before the split.
+          **Extended right after, on request:** moved into a new
+          `backend/lib/` folder (asked unprompted, connecting it to the
+          same "organize the frontend into folders" goal) —
+          `recipeParser.js` → `lib/recipeParser.js`, `app.js`'s require
+          updated to match. Confirmed via `npm test`, all 6 still
+          passing.
+    - [x] 14.3 Backend: extract the route handlers into a `routes/`
+          folder (matching `recipeParser.js`'s new home in `lib/`),
+          leaving `app.js` as just setup/middleware/mounting.
+          **Completed 2026-08-28.** The biggest refactor in this
+          section: `app.js` shrank from ~200 lines to ~55. Introduced
+          `express.Router()` — a self-contained, mountable mini-version
+          of `app` — plus a factory-function pattern (`module.exports =
+          (pool) => {...}`) so each route file gets the shared DB
+          connection without a global variable. Four new files:
+          `routes/auth.js`, `routes/week.js`, `routes/groceryList.js`,
+          `routes/recipes.js` (guide-authored relocation of the
+          student's own existing route logic, unchanged). The one real
+          architectural constraint carried over carefully: `/api/login`
+          stays mounted *before* `requireAuth`, everything else *after*
+          — same ordering rule as before, just now spanning multiple
+          `app.use('/api', require('./routes/X')(...))` lines instead
+          of inline route definitions. Self-authored both blanks
+          (the auth mount, and the other three) correct on the first
+          try. Correctly predicted, unprompted, that all 6 tests would
+          still pass — "all the logic is the same" — confirmed, plus a
+          full live smoke test across all 4 route groups (`/api/week`,
+          `/api/grocery-list`, `/api/recipes`, `/api/login`), all
+          responding with the expected status codes.
+          **Extended right after, on request:** `requireAuth` moved into
+          a new `backend/middleware/` folder too — this one entirely
+          self-authored, start to finish, no scaffolding (function body,
+          `module.exports = {requireAuth}`, and the `app.js` wiring).
+          One self-caught bug: first attempt wrote
+          `require('/middleware/requireAuth.js')` — a *leading* `/`
+          with no `.` before it, which correctly identified, unprompted,
+          as "the filesystem root" rather than relative to `app.js` —
+          fixed to `./middleware/requireAuth.js`. Confirmed via all 6
+          tests plus a live check.
+          **Extended once more, on request:** the `Pool`/`poolConfig`
+          setup moved to `backend/lib/db.js` too, entirely self-authored.
+          A real design distinction was explained first — route files
+          export a *factory function* (need `pool` handed in from
+          outside), but `db.js` is where `pool` itself comes from, so it
+          exports the value directly. Two real, self-caught bugs, each
+          correctly diagnosed once asked to trace it: (1)
+          `module.exports(pool)` — *calling* `module.exports` (a plain
+          object by default, not callable) instead of assigning to it,
+          a `TypeError` waiting to happen; (2) `require('express-session')`
+          got carried along into `db.js` by mistake (unused there), which
+          silently deleted it from `app.js`, where the actual
+          `app.use(session(...))` call still needed it — correctly
+          predicted the resulting `ReferenceError` before running.
+          Confirmed via all 6 tests plus live checks on two different
+          routes.
+          **Extended a final time, on request:** `app.js` reorganized so
+          every `require()` sits together at the top (pulling the
+          previously-inline route requires, e.g.
+          `require('./routes/auth')`, out into named constants) and
+          every `app.use()` call sits together right after `const app =
+          express()`, instead of interspersed. One real constraint
+          explained and preserved: the `app.use()` calls themselves
+          couldn't be freely reordered — `cors`/`json`/`session` before
+          any route needing them, the auth route before `requireAuth`,
+          `requireAuth` before the protected routes — grouping only
+          moved the *requires* out, not the relative order of the
+          `app.use()` calls. Confirmed via all 6 tests plus a full live
+          check across every route group.
+    - [x] 14.4 Frontend: create a `components/` folder and move
+          `RecipeManager.jsx`, `RecipeView.jsx`, `GroceryList.jsx`, and
+          `Login.jsx` into it, updating every import that points to
+          them.
+          **Completed 2026-08-28.** Entirely self-authored, mirroring
+          the backend's `lib/`/`routes/`/`middleware/` moves. One real,
+          initially-wrong prediction, corrected through reasoning: first
+          guessed `RecipeManager.jsx`'s own `import RecipeView from
+          './RecipeView.jsx'` would need to change too — corrected once
+          asked to think about relative paths as describing the
+          relationship *between* two files, not an absolute location;
+          since both files move into `components/` *together*, nothing
+          about their relationship to each other changes. Confirmed
+          correct: that internal import needed zero changes.
+          `App.jsx`'s three imports needed the actual fix (staying in
+          `src/` while the components moved away from it) — two
+          self-caught bugs in a row: first left `App.jsx` completely
+          unchanged, then a typo (`.components/...`, missing the `/`
+          after the `.`) — both self-diagnosed once asked to compare
+          against the correct `./` form used everywhere else. Confirmed
+          live in the browser: login, recipe manager, and grocery list
+          all render correctly.
+    - [x] 14.5 Confirm everything still works after the reorganization
+          — run the test suite, then click through the whole app
+          locally (login, manage recipes, grocery list, cookbook view,
+          import-from-url).
+          **Completed 2026-08-28.** All 6 tests passing, and every real
+          user flow confirmed working in one session: login, Manage
+          Recipes (ingredients shown per recipe), grocery list, cookbook
+          view (open + close), and a real import-from-url — the whole
+          app, after every file it's made of moved somewhere new.
+    - [x] 14.6 Backend: convert every route's `.then()`/`.catch()` chain
+          to `async`/`await` with `try`/`catch`, across all 4 route
+          files (`groceryList.js`, `week.js`, `recipes.js`, `auth.js`)
+          plus `createRecipe()`. Requested 2026-08-28, closing out the
+          future initiative flagged back in task 10.3.
+          **Completed 2026-08-28.** First real backend use of
+          `async`/`await` outside a test file, and the project's
+          first-ever `try`/`catch`. Worked through in increasing
+          difficulty: `groceryList.js` guide-authored as the first
+          worked example (establishing the `.then(x => {...})` →
+          `const x = await ...` and `.catch(err => {...})` → `catch
+          (err) {...}` mapping); `week.js` and `auth.js` self-authored
+          correctly on the first try (the latter even proactively added
+          error handling that hadn't existed before); `recipes.js` (the
+          biggest file, and the one that originally motivated this task
+          back in 10.3) self-authored past two real, self-corrected
+          bugs — a missing `await` on `pool.query(...)` in the `PUT`
+          route (correctly predicted the resulting crash before it was
+          ever run) and an incompletely-converted `Promise.all(...)
+          .then(...)` left inside `createRecipe`. Correctly predicted,
+          unprompted and before writing any code, that the `PUT` route's
+          `updatedRecipe` no longer needs the `let`-hoisting trick from
+          task 10.3 — flat `async`/`await` code has no more separate
+          callback scopes for that bug to hide in. One real regression
+          caught by prediction: converting every route's `catch` to a
+          uniform generic message broke the specific, carefully-built
+          `"Could not get recipe data"` error from Section 13 — restored
+          by matching the app's actual original convention (`GET` routes
+          generic, mutation routes pass through `err.message`).
+          Confirmed via all 6 tests, live checks on every route, and a
+          full `POST`/`PUT`/`DELETE` recipe cycle. Aside: a live `PUT
+          /api/week/Monday` test call briefly cleared Monday's real
+          assignment to `null`; caught and restored to Lasagna
+          immediately.
+          **Extended right after, on request:** the long single-line SQL
+          query strings (`groceryList.js`'s `SELECT`, `week.js`'s
+          `SELECT`, and `recipes.js`'s recipe/ingredient
+          `INSERT`s/`UPDATE`) reformatted across multiple lines for
+          readability — guide-authored (requested directly), but the
+          *why* explained and confirmed first: a plain `'...'`/`"..."`
+          string can't contain a real line break in the source at all
+          (a syntax error), while backtick template literals preserve
+          whatever's literally typed between them, including line
+          breaks — the same tool already known for interpolation, now
+          used for its other purpose. Confirmed via all 6 tests and a
+          full recipe create/update/delete cycle.
+    - [ ] 14.7 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -641,12 +826,6 @@ requested directly rather than as a plan task, recorded the same way.
   `node-pg-migrate`) would replace "remember to run this SQL against
   every database" with versioned scripts + one command that applies
   whatever a given database is missing. Not yet turned into tasks.
-- **Refactor backend routes from `.then()` chains to `async`/`await`.**
-  Flagged 2026-08-27 during task 10.3: the `PUT /api/recipes/:id` route's
-  three chained `.then()`s directly caused that task's `updatedRecipe`
-  block-scoping bug (declared inside one `.then()` callback, invisible
-  in a later sibling callback) — a class of bug flat, sequential
-  `async`/`await` code avoids outright. Not yet started.
 
 ## Known issues (fixed)
 
