@@ -594,7 +594,7 @@ is set up in Section 1, before any app code, and used throughout.
           a correct `RecipeView` cookbook page (Section 11), confirming
           the two features work together end-to-end, not just in
           isolation.
-    - [ ] 13.7 Commit and push.
+    - [x] 13.7 Commit and push. **Done 2026-08-28** — pushed as `285f7f0`.
 
 ## Dev tooling improvements
 
