@@ -779,7 +779,7 @@ is set up in Section 1, before any app code, and used throughout.
           breaks — the same tool already known for interpolation, now
           used for its other purpose. Confirmed via all 6 tests and a
           full recipe create/update/delete cycle.
-    - [ ] 14.7 Commit and push.
+    - [x] 14.7 Commit and push. **Done 2026-08-28** — pushed as `4fdf0dc`.
 
 ## Dev tooling improvements
 
