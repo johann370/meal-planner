@@ -1,13 +1,13 @@
 const express = require('express');
-if(process.env.NODE_ENV === 'test') {
-    require('dotenv').config({path: '.env.test'});
-}else {
+if (process.env.NODE_ENV === 'test') {
+    require('dotenv').config({ path: '.env.test' });
+} else {
     require('dotenv').config();
 }
 const cors = require('cors');
 const session = require('express-session');
-const pool = require('./lib/db.js');
-const {requireAuth} = require('./middleware/requireAuth.js');
+const prisma = require('./lib/prisma.js');
+const { requireAuth } = require('./middleware/requireAuth.js');
 const authRoutes = require('./routes/auth');
 const groceryListRoutes = require('./routes/groceryList');
 const recipesRoutes = require('./routes/recipes');
@@ -24,9 +24,9 @@ app.use(session({
 }));
 app.use('/api', authRoutes());
 app.use(requireAuth);
-app.use('/api', groceryListRoutes(pool));
-app.use('/api', recipesRoutes(pool));
-app.use('/api', weekRoutes(pool));
+app.use('/api', groceryListRoutes(prisma));
+app.use('/api', recipesRoutes(prisma));
+app.use('/api', weekRoutes(prisma));
 
-app.pool = pool;
+app.prisma = prisma;
 module.exports = app;

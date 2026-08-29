@@ -1,22 +1,33 @@
 const express = require('express');
 
-module.exports = (pool) => {
+module.exports = (prisma) => {
     const router = express.Router();
 
     router.get('/grocery-list', async (req, res) => {
         try {
-            const result = await pool.query(`
-                SELECT ingredients.name, ingredients.unit, SUM(ingredients.quantity) AS quantity
-                FROM week_meal
-                JOIN recipes ON week_meal.recipe_id = recipes.id
-                JOIN ingredients ON ingredients.recipe_id = recipes.id
-                GROUP BY ingredients.name, ingredients.unit
-                ORDER BY ingredients.name
-            `);
-            res.json(result.rows);
+            const weekMeals = await prisma.week_meal.findMany({
+                include: { recipes: { include: { ingredients: true } } }
+            });
+
+            const allIngredients = weekMeals
+                .filter(weekMeal => weekMeal.recipes)
+                .flatMap(weekMeal => weekMeal.recipes.ingredients);
+
+            const groceryList = allIngredients.reduce((acc, ingredient) => {
+                let foundIngredient = acc.find(item => item.name === ingredient.name && item.unit === ingredient.unit);
+                if (foundIngredient) {
+                    foundIngredient.quantity += parseFloat(ingredient.quantity);
+                } else {
+                    acc = [...acc, { name: ingredient.name, unit: ingredient.unit, quantity: parseFloat(ingredient.quantity) }];
+                }
+                return acc;
+            }, [])
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            res.json(groceryList);
         } catch (err) {
             console.error(err);
-            res.status(500).json({error: 'Internal server error'});
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

@@ -2,35 +2,24 @@ const express = require('express');
 const cheerio = require('cheerio');
 const { parseIngredient } = require('../lib/recipeParser.js');
 
-module.exports = (pool) => {
+module.exports = (prisma) => {
     const router = express.Router();
 
     async function createRecipe({ title, ingredients, instructions }) {
-        const recipeResult = await pool.query(`
-            INSERT INTO recipes (title, instructions)
-            VALUES ($1, $2)
-            RETURNING *
-        `, [title, instructions]);
-        const newRecipe = recipeResult.rows[0];
-        const insertPromises = ingredients.map(ingredient => pool.query(`
-            INSERT INTO ingredients (name, quantity, unit, recipe_id)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
-        `, [ingredient.name, ingredient.quantity, ingredient.unit, newRecipe.id]));
-
-        const ingredientsResult = await Promise.all(insertPromises);
-        newRecipe.ingredients = ingredientsResult.map(ingredient => ingredient.rows[0]);
+        const newRecipe = await prisma.recipes.create({
+            data: {
+                title,
+                instructions,
+                ingredients: { create: ingredients.map(ingredient => ({ name: ingredient.name, quantity: ingredient.quantity, unit: ingredient.unit })) }
+            },
+            include: { ingredients: true }
+        });
         return newRecipe;
     }
 
     router.get('/recipes', async (req, res) => {
         try {
-            const recipesResult = await pool.query('SELECT * FROM recipes ORDER BY id');
-            const ingredientsResult = await pool.query('SELECT * FROM ingredients ORDER BY id');
-            const recipes = recipesResult.rows.map(recipe => ({
-                ...recipe,
-                ingredients: ingredientsResult.rows.filter(ingredient => ingredient.recipe_id === recipe.id)
-            }));
+            const recipes = await prisma.recipes.findMany({ include: { ingredients: true }, orderBy: { id: 'asc' } });
             res.json(recipes);
         } catch (err) {
             console.error(err);
@@ -82,22 +71,18 @@ module.exports = (pool) => {
             const { id } = req.params;
             const { title, ingredients, instructions } = req.body;
 
-            const result = await pool.query(`
-                UPDATE recipes
-                SET title = $1, instructions = $2
-                WHERE id = $3
-                RETURNING *
-            `, [title, instructions, id]);
-            const updatedRecipe = result.rows[0];
-            await pool.query('DELETE FROM ingredients WHERE recipe_id = $1', [id]);
-
-            const insertPromises = ingredients.map(ingredient => pool.query(`
-                INSERT INTO ingredients (name, quantity, unit, recipe_id)
-                VALUES ($1, $2, $3, $4)
-                RETURNING *
-            `, [ingredient.name, ingredient.quantity, ingredient.unit, id]));
-            const ingredientsResult = await Promise.all(insertPromises);
-            updatedRecipe.ingredients = ingredientsResult.map(ingredient => ingredient.rows[0]);
+            const updatedRecipe = await prisma.recipes.update({
+                where: { id: parseInt(id) },
+                data: {
+                    title,
+                    instructions,
+                    ingredients: {
+                        deleteMany: {},
+                        create: ingredients.map(ingredient => ({ name: ingredient.name, unit: ingredient.unit, quantity: ingredient.quantity }))
+                    }
+                },
+                include: { ingredients: true }
+            });
             res.json(updatedRecipe);
         } catch (err) {
             console.error(err);
@@ -108,8 +93,8 @@ module.exports = (pool) => {
     router.delete('/recipes/:id', async (req, res) => {
         try {
             const { id } = req.params;
-            await pool.query('DELETE FROM ingredients WHERE recipe_id = $1', [id]);
-            await pool.query('DELETE FROM recipes WHERE id = $1 RETURNING *', [id]);
+            await prisma.ingredients.deleteMany({ where: { recipe_id: parseInt(id) } });
+            await prisma.recipes.delete({ where: { id: parseInt(id) } });
             res.status(204).send()
         } catch (err) {
             console.error(err);

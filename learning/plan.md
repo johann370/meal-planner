@@ -781,6 +781,325 @@ is set up in Section 1, before any app code, and used throughout.
           full recipe create/update/delete cycle.
     - [x] 14.7 Commit and push. **Done 2026-08-28** — pushed as `4fdf0dc`.
 
+15. **Adopt Prisma as the database layer.** Chosen 2026-08-29: replace
+    raw `pg`/`Pool` queries with Prisma — a declarative `schema.prisma`
+    file as the single source of truth for the database structure, a
+    real versioned migration workflow, and a type-safe query API in
+    place of hand-written SQL strings. Popular, extremely well
+    documented — fits the same "boring, well-trodden tool" philosophy
+    as every other stack choice in this project.
+    *Deliverable: the same app, behaving identically, but reading from
+    and writing to the database through Prisma instead of raw SQL —
+    with a real migration you can point to as proof the workflow works.*
+    - [x] 15.1 Install `prisma` + `@prisma/client`; run `prisma init`
+          and walk through what it scaffolds; introspect the existing
+          database (`prisma db pull`) into a real `schema.prisma`
+          describing the actual `recipes`/`ingredients`/`week_meal`
+          tables; generate the Prisma Client.
+          **Completed 2026-08-29 — a genuinely bumpy task, real tooling
+          problems, not just teaching gaps:**
+          - First `npm install prisma` pulled a **release candidate**
+            (`prisma@8.0.0-rc.12`), mismatched against
+            `@prisma/client@7.10.0`, dragging in a high-severity
+            vulnerable dependency chain (`@prisma/dev` → `hono`/
+            `alchemy`). Caught before building on it; both packages
+            reinstalled pinned to the same stable `7.10.0`.
+          - Even pinned-stable `7.10.0` has one remaining high-severity
+            advisory (`deepmerge-ts`, via `@prisma/config`, a stack-
+            exhaustion bug on recursive object merging) with no fix
+            short of downgrading to `6.12.0`. Explicitly discussed and
+            accepted: it's a `devDependency` (the CLI, not
+            `@prisma/client`, which ships to production), and the
+            trigger (attacker-controlled recursive config) doesn't
+            apply to how the CLI actually gets used here.
+          - `prisma init` scaffolded far more than expected: alongside
+            the two real files (`prisma/schema.prisma`,
+            `prisma7.config.ts`), it installed ~80 files of vendor
+            reference documentation for AI coding assistants (Claude
+            Code, Windsurf, generic `.agents/`) under `.agents/skills/`,
+            `.claude/skills/`, `.windsurf/skills/`, plus
+            `skills-lock.json` — none of it code to read or write,
+            parked in the file map the same way `node_modules/` is.
+            Also created a new `backend/.gitignore` (didn't exist
+            before), already correctly excluding the generated client.
+          - `prisma init`'s auto-inserted `DATABASE_URL` pointed at
+            Prisma's own local dev Postgres server, not the real
+            existing `meal_planner` database — replaced with the real
+            connection string (same credentials as the existing
+            discrete `DB_*` fields, just combined into one string),
+            added to both `.env` and `.env.test`.
+          - Correctly predicted the 3 real table names before running
+            `db pull` (`recipes`, `ingredients`, `week_meal` — one
+            initial word-order slip, "meal_week", self-corrected).
+          - `db pull` surfaced a real, previously-invisible bug: the
+            `recipes` table still had its old, pre-Section-10
+            `ingredients` *text* column, never actually dropped — a
+            genuine naming collision Prisma correctly refused to
+            accept (`Field "ingredients" is already defined`),
+            correctly predicted as a rejection before running.
+            Confirmed via `psql` that the column was fully dead
+            (`"TBD"` placeholders, blanks, one known garbled leftover
+            from task 10.3's serialization bug) before getting explicit
+            go-ahead to permanently drop it — from both `meal_planner`
+            and `meal_planner_test` — via `ALTER TABLE recipes DROP
+            COLUMN ingredients` (new SQL DDL syntax). Re-introspected
+            clean afterward.
+          - Generating the client with Prisma 7's *new default*
+            generator (`provider = "prisma-client"`) produced raw
+            TypeScript/ESM source (`import.meta.url`, bare `import`
+            statements) — un-loadable by this plain CommonJS backend
+            with no TS toolchain at all. Root-caused by reading
+            Prisma's own bundled migration-notes reference docs (from
+            the scaffolded `.agents/skills/`) rather than guessing;
+            switched to the legacy `provider = "prisma-client-js"`,
+            which does emit plain compiled JavaScript.
+          - Even the legacy generator required one more new v7 concept:
+            driver adapters are now mandatory — a bare `new
+            PrismaClient()` throws
+            `PrismaClientInitializationError` demanding one. Installed
+            `@prisma/adapter-pg`, built a `PrismaPg` adapter from
+            `DATABASE_URL`, passed it in as `{ adapter }`.
+          - **Finally confirmed working end-to-end:** a real
+            `prisma.recipes.findMany(...)` call returned real rows from
+            the actual database.
+          - **Discovered right after, a real regression, not yet fully
+            fixed:** `requireAuth`'s local-dev bypass
+            (`!process.env.DATABASE_URL`) silently broke, since
+            `DATABASE_URL` is no longer Render-only now that Prisma
+            needs it locally too — confirmed live (`/api/week` came
+            back `401` instead of bypassing). Decided on a fix: a new
+            explicit `LOCAL_DEV_BYPASS_AUTH=true` flag in `.env` only
+            (never `.env.test`, never Render), fully under our own
+            control instead of inferred from a variable that now means
+            something else too. **Only half done: the flag was added to
+            `.env`, but `middleware/requireAuth.js`'s condition itself
+            was not yet updated to check it** — stopped here at the
+            student's request. Local dev currently requires a real
+            login again (same as before the dev-bypass convenience
+            existed) until this is finished.
+    - [x] 15.2 Finish the `requireAuth` local-dev-bypass fix: update
+          `middleware/requireAuth.js`'s condition to check the new
+          `LOCAL_DEV_BYPASS_AUTH` flag (already added to `.env`) instead
+          of the now-unreliable `!process.env.DATABASE_URL`; confirm
+          `/api/week` bypasses locally again without breaking the real
+          401 test.
+          **Completed 2026-08-29.** Self-authored the one-line swap to
+          `if (process.env.LOCAL_DEV_BYPASS_AUTH) {...}`, correct on the
+          first try — including correctly reasoning, unprompted, that the
+          old condition's second half (`process.env.NODE_ENV !== 'test'`)
+          is now redundant and could be dropped entirely, since
+          `LOCAL_DEV_BYPASS_AUTH` simply doesn't exist in `.env.test` at
+          all. Correctly predicted both halves of the confirmation before
+          running anything: the real 401 test would still pass (test env
+          never bypasses), and a live no-session request to `/api/week`
+          would now succeed (local dev does bypass) — both confirmed
+          exactly as predicted (6/6 tests; a live `curl` with no cookie
+          returned real week data).
+    - [x] 15.3 Convert the read-only routes (`GET /api/week`, `GET
+          /api/grocery-list`, `GET /api/recipes`) to Prisma Client
+          calls; confirm each returns identical data to before.
+          **Completed 2026-08-29.** New `lib/prisma.js` (guide-authored
+          — new library-specific plumbing, not a concept to practice):
+          one shared `PrismaClient`, built with the `PrismaPg` driver
+          adapter Prisma 7 now requires, exported directly like
+          `lib/db.js`'s `pool`. `GET /api/recipes` converted first and
+          simplest — self-authored `prisma.recipes.findMany({include:
+          {ingredients: true}, orderBy: {id: 'asc'}})` correct on the
+          first try, replacing the old two-query-plus-`.filter()` join
+          entirely. `GET /api/week` surfaced a real, correctly-predicted
+          design gap first: unlike raw SQL's **inner** `JOIN` (which
+          silently drops a `week_meal` row with no matching recipe —
+          task 10.3's lesson), Prisma's `include` keeps such a row with
+          `recipes: null`, which would crash `.meal` access — fixed with
+          a `.filter(row => row.recipes)` before the `.map()`, correctly
+          reasoned through unprompted before writing any code. Hit one
+          real, self-corrected bug: first attempt chained `.filter()`
+          directly onto `findMany(...)` before `await`-ing it, calling
+          an array method on a bare Promise — correctly predicted the
+          exact crash beforehand ("filter doesn't work on a promise"),
+          confirmed live via the real `TypeError`, self-fixed by
+          `await`-ing into its own variable first. `GET
+          /api/grocery-list` was the hardest: Prisma's query builder
+          can't reproduce a `GROUP BY` across a multi-table `JOIN`
+          directly, so it's fetched nested (`week_meal` →`recipes`
+          →`ingredients`) and combined in JS instead — first use of
+          `.flatMap()` (flatten each day's ingredient list into one) and
+          `.reduce()` (build one combined list, using the already-known
+          `.find()` to detect a matching name+unit and merge into it).
+          A real, pre-flagged gotcha handled correctly: Postgres
+          `numeric` columns come back from Prisma as Decimal *objects*,
+          not plain numbers — confirmed live that plain `+` between two
+          of them string-concatenates (`"1" + "0.5"` → `"10.5"`) instead
+          of adding; self-authored the fix using `parseFloat()`, an
+          unprompted correct reuse of the exact tool from task 13.3's
+          fraction parser in a brand-new context. Live output confirmed
+          the multiplication case matters and works: `chicken breast`
+          summed to `3` and `curry powder`/`coconut milk` to `4`/`2`,
+          correctly reflecting Chicken Curry being assigned to *two*
+          different days, not deduplicated. One more real gap
+          self-diagnosed after being asked to look: the combined list
+          came back unsorted (the old SQL's `ORDER BY ingredients.name`
+          had no Prisma equivalent left) — self-added
+          `.sort((a,b) => a.name.localeCompare(b.name))`, confirmed
+          alphabetical again. Final regression, unprompted correct
+          diagnosis: `npm test` passed 6/6 but Jest warned about an open
+          handle again — correctly reasoned, from the exact same task
+          7.3 lesson, that the new Prisma Client (a second database
+          connection) needed its own cleanup; self-authored `app.prisma
+          = prisma` in `app.js` and `await app.prisma.$disconnect()`
+          alongside the existing `app.pool.end()` in `app.test.js`'s
+          `afterAll`, confirmed clean. All 6 tests pass, all 3 routes
+          curled and confirmed against real data. Known loose end,
+          deliberately deferred to task 15.5: `groceryList.js`'s
+          factory still takes an now-fully-unused `pool` parameter,
+          since that file's only route no longer touches it at all.
+    - [x] 15.4 Convert the write routes (`POST`/`PUT`/`DELETE
+          /api/recipes`, `PUT /api/week/:day`, plus `createRecipe`) to
+          Prisma Client, including the nested recipe→ingredients
+          relationship; confirm via a full create/update/delete cycle.
+          **Completed 2026-08-29.** Found at the start of this task that
+          `createRecipe` (used by `POST /api/recipes`), `PUT
+          /api/recipes/:id`, and `PUT /api/week/:day` were *already*
+          converted to Prisma in the working tree — real, working code
+          (all 6 tests passed against it), just never logged here or
+          checked off, likely from a session that ended before the docs
+          caught up. `createRecipe` uses `prisma.recipes.create` with a
+          nested `ingredients: { create: [...] }` (the recipe→ingredients
+          relationship written in one call); `PUT /api/recipes/:id` uses
+          `prisma.recipes.update` with nested `ingredients: { deleteMany:
+          {}, create: [...] }` (wipe-and-replace, same shape as the old
+          raw SQL); `PUT /api/week/:day` uses `prisma.week_meal.findFirst`
+          + `.update`. Only `DELETE /api/recipes/:id` actually needed new
+          work this task: self-authored both lines correct on the first
+          try (`prisma.ingredients.deleteMany({where: {recipe_id:
+          ...}})` then `prisma.recipes.delete({where: {id: ...}})`),
+          after correctly predicting, unprompted, that skipping the
+          ingredients step and deleting the recipe directly would be
+          blocked by the foreign key — the same rule already understood
+          from raw SQL (Section 10), now correctly recognized as still
+          applying under Prisma. Confirmed via all 6 tests plus a real
+          live `curl` create → update → delete cycle: recipe created with
+          an ingredient, updated to a new title/ingredient, deleted
+          (`204`), then confirmed genuinely gone from `GET /api/recipes`.
+          Noted but deliberately left alone: `recipes.js`'s `pool`
+          parameter is now unused (every route in the file is on Prisma)
+          — flagged for task 15.5, not fixed here.
+    - [x] 15.5 Retire the raw `pg` `Pool` (`lib/db.js`) once nothing
+          else depends on it; confirm the full test suite and a live
+          click-through of the whole app still pass.
+          **Completed 2026-08-29.** Removed `pool` from the three route
+          factories' signatures first — while `app.js` still called them
+          with `(pool, prisma)`, deliberately, to see the real
+          consequence: JS binds function arguments **by position, not
+          name**, so each file's `prisma` parameter was actually catching
+          `pool` (the first positional argument), not the real Prisma
+          client. Correctly predicted, once redirected from an initial
+          "unused parameter" framing, exactly which value would bind
+          (`pool`) and that `npm test` would break as a result —
+          confirmed live via a real `TypeError: Cannot read properties of
+          undefined (reading 'findMany')` and 3 real test failures.
+          Fixed by updating `app.js`'s three mounting calls to
+          `recipesRoutes(prisma)` etc.; correctly predicted the return to
+          green, confirmed (6/6). Then retired the rest of `pool` itself:
+          removed `app.js`'s `require('./lib/db.js')` and `app.pool =
+          pool`, and `app.test.js`'s `await app.pool.end()`, correctly
+          predicting each step's outcome before running it (including
+          that deleting `lib/db.js` *before* removing those references
+          would throw a "missing module" error, same as Section 14).
+          Deleted `lib/db.js` itself once nothing referenced it anymore;
+          confirmed via `npm test`. Closed out by running `npm uninstall
+          pg` — correctly predicted `package.json` would lose the entry
+          and the app would behave identically; `pg` itself stayed in
+          `node_modules` because `@prisma/adapter-pg` still genuinely
+          depends on it internally, a real distinction between a direct
+          and a transitive dependency. Confirmed via all 6 tests, then a
+          real live click-through of the whole app.
+
+          **A real bug surfaced during that click-through, unrelated to
+          today's `pool` cleanup:** changing a day's recipe through the
+          actual dropdown silently failed. Root-caused via a `curl`
+          reproduction, not guessed at: an HTML `<select>`'s `onChange`
+          always hands back `e.target.value` as a **string**, even for a
+          list of numeric recipe ids — `PUT /api/week/:day` was receiving
+          `{recipeId: "3"}`. The old raw-SQL version never noticed, since
+          `pg`/Postgres casts a string parameter to an integer column
+          automatically; Prisma's typed client is strict about it and
+          threw a real `Invalid value provided. Expected Int ... provided
+          String` `500` — a latent regression from task 15.3's Prisma
+          conversion of this route, invisible until a real browser
+          dropdown (rather than a `curl` call already sending a number)
+          exercised it. Correctly identified, when asked, that the fix
+          belongs on the backend (matching `recipes.js`'s existing
+          `parseInt(id)` convention) rather than the frontend; self-authored
+          wrapping `recipeId` in `parseInt(...)` before it reaches
+          `prisma.week_meal.update(...)`, correct on the first try.
+          Confirmed via a repeat `curl` (now succeeds), all 6 tests, and
+          a second real click-through — reassigning Tuesday's recipe in
+          the actual browser now sticks.
+    - [x] 15.6 Create one real schema change through Prisma Migrate
+          (versioned migration file, not hand-run SQL) as concrete
+          proof the migration workflow works — closing out the
+          "database migrations" future initiative flagged in task 10.3.
+          **Completed 2026-08-29.** The real, unavoidable complication:
+          `schema.prisma` was introspected from an *already-existing*
+          database (task 15.1), so there was no migration history yet —
+          running `prisma migrate dev` directly would have tried to
+          `CREATE TABLE` everything from scratch, hit "already exists,"
+          and Prisma would have offered to fix the mismatch by
+          **resetting the database — all data lost**. Correctly predicted
+          this would touch nothing on its own, confirmed live via a real
+          "Drift detected... We need to reset" message that stopped
+          short of actually doing it. Fixed via the documented
+          "baselining" recipe (checked against Prisma's own reference
+          docs rather than guessed at, given the destructive stakes):
+          `prisma migrate diff --from-empty --to-schema ...` generated a
+          real `CREATE TABLE ...` SQL file purely from a schema
+          comparison (no database touched at all), manually placed in a
+          new `prisma/migrations/0_init/` folder, then `prisma migrate
+          resolve --applied 0_init` recorded it as already-done without
+          running the SQL — correctly predicted neither step would touch
+          real data, confirmed via `prisma migrate status` ("up to date")
+          and a live recipe-count check.
+
+          With the baseline in place, added a genuine new field —
+          `recipes.created_at DateTime? @default(now())` — self-authored
+          in `schema.prisma` past one real, caught mistake: first wrote
+          `DateTime @optional @default(now())` (`@optional` isn't a real
+          Prisma attribute); corrected to `DateTime?` once pointed at
+          `title String?` two lines up as the existing pattern for
+          "optional." `prisma migrate dev --name
+          add_recipe_created_at` then generated and applied a real,
+          versioned `ALTER TABLE recipes ADD COLUMN created_at ...`
+          migration file, correctly predicted beforehand.
+
+          Two genuine gaps surfaced and resolved after that, both dug
+          into rather than skipped past: (1) the new field didn't show
+          up in a live `curl` response at first — correctly reasoned
+          (once redirected from "the server needs a restart" to the more
+          precise "the generated client code") that `lib/generated/prisma`
+          is a frozen snapshot from the last `prisma generate`, not
+          something that updates automatically when `schema.prisma`
+          changes; fixed by regenerating, confirmed live. (2) raised an
+          unprompted, genuine concern that existing recipes' `created_at`
+          would be missing — checked directly via a raw query and found
+          the *opposite*: Postgres backfills a `DEFAULT` onto every
+          existing row the moment the column is added, evaluated once at
+          migration time, not left blank just because the field is
+          optional going forward. Then a real, predicted-correctly-once-
+          diagnosed regression: 3 tests failed against `meal_planner_test`
+          with `The column recipes.created_at does not exist` — correctly
+          reasoned, unprompted, that the migration had only ever touched
+          the dev database, applying the exact "dev and test are separate
+          databases" lesson from Section 7 to a new context (migrations,
+          not just app data). Fixed by baselining and then `migrate
+          deploy`-ing the same two migrations against `meal_planner_test`
+          too (via a small script loading `.env.test` rather than typing
+          test credentials into a command). Confirmed via all 6 tests,
+          then two full live click-throughs of the whole app (the first
+          predated the `created_at` regen and was premature; the second,
+          after every fix, held).
+    - [ ] 15.7 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -819,14 +1138,6 @@ requested directly rather than as a plan task, recorded the same way.
   separate rows instead of combining — a real data-quality gap, not a
   query bug. Not in task 10.6's scope (case-insensitive matching was
   never asked for) and not yet turned into a task.
-- **Database migrations.** Flagged 2026-08-27 after task 10.3 revealed
-  `meal_planner_test` was still missing the `ingredients` table — task
-  10.1's `CREATE TABLE` only ever ran by hand against the dev database,
-  and nothing kept the two in sync. A real migration tool (e.g.
-  `node-pg-migrate`) would replace "remember to run this SQL against
-  every database" with versioned scripts + one command that applies
-  whatever a given database is missing. Not yet turned into tasks.
-
 ## Known issues (fixed)
 
 - **Task 10.5's edit-load half was already fixed by 10.4, not broken.**

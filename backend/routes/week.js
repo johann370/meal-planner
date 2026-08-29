@@ -1,32 +1,29 @@
 const express = require('express');
 
-module.exports = (pool) => {
+module.exports = (prisma) => {
     const router = express.Router();
 
     router.get('/week', async (req, res) => {
         try {
-            const result = await pool.query(`
-                SELECT week_meal.day, recipes.title AS meal
-                FROM week_meal
-                JOIN recipes ON recipe_id = recipes.id
-                ORDER BY week_meal.id
-            `);
-            res.json(result.rows);
-        } catch(err) {
+            const weekRawData = await prisma.week_meal.findMany({ include: { recipes: true }, orderBy: { id: 'asc' } });
+            const week = weekRawData.filter(row => row.recipes).map(row => ({ day: row.day, meal: row.recipes.title }));
+            res.json(week);
+        } catch (err) {
             console.error(err);
-            res.status(500).json({error: 'Internal server error'});
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     router.put('/week/:day', async (req, res) => {
-        const {day} = req.params;
-        const {recipeId} = req.body;
+        const { day } = req.params;
+        const { recipeId } = req.body;
 
         try {
-            const result = await pool.query('UPDATE week_meal SET recipe_id = $1 WHERE day = $2 RETURNING *', [recipeId, day]);
-            res.json(result.rows[0]);
-        } catch(err) {
-            res.status(500).json({error: err.message});
+            const weekMeal = await prisma.week_meal.findFirst({ where: { day } });
+            const updated = await prisma.week_meal.update({ where: { id: weekMeal.id }, data: { recipe_id: parseInt(recipeId) } });
+            res.json(updated);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
         }
     });
 
