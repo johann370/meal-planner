@@ -104,20 +104,23 @@ Section 13 (task 13.5): new "Import from URL" control (`importUrl` state, `handl
 
 ---
 
-*Last updated: 2026-08-30 — Section 16 (tasks 16.1-16.4) in progress:
-`RecipeManager.jsx`'s instructions field is now a real `<textarea>`
-instead of a single-line `<input>`, self-authored. Confirmed live: Enter
-inserts a line break instead of submitting the form (a real difference
-between the two elements' browser defaults), and a real multi-line
-recipe's line breaks survive a full save → Edit-reload round trip
-unchanged. `RecipeView.jsx`'s cookbook page now actually renders those
-line breaks too — a `className` on the instructions `<p>` plus a
-`white-space: pre-line` rule in `App.css`, both self-authored — closing
-the gap between "the data is really multi-line" (16.2) and "it visibly
-looks multi-line" (16.3). The textarea itself is now styled too
+*Last updated: 2026-08-30 — Section 16 closed out (task 16.6): committed
+and pushed as `87357aa`. `RecipeManager.jsx`'s instructions field is now
+a real `<textarea>` instead of a single-line `<input>`, self-authored.
+Confirmed live: Enter inserts a line break instead of submitting the
+form (a real difference between the two elements' browser defaults), and
+a real multi-line recipe's line breaks survive a full save → Edit-reload
+round trip unchanged. `RecipeView.jsx`'s cookbook page now actually
+renders those line breaks too — a `className` on the instructions `<p>`
+plus a `white-space: pre-line` rule in `App.css`, both self-authored —
+closing the gap between "the data is really multi-line" (16.2) and "it
+visibly looks multi-line" (16.3). The textarea itself is styled too
 (`.instructions-input { height: 4em; resize: vertical; }`), correctly
-predicted to allow height-only resizing. A full end-to-end confirmation
-(task 16.5) and commit/push (16.6) not yet done.
+predicted to allow height-only resizing. Task 16.5's end-to-end pass
+surfaced one real, quickly-corrected mix-up between the Edit form's
+`<textarea>` and the separate cookbook-view component. No backend
+changes anywhere in this section — `instructions` was already a plain
+text column that round-trips newlines unchanged.
 
 Section 15 closed out (task 15.7): committed
 and pushed as `539f39c`. `backend/.gitignore` extended to exclude the 71

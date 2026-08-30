@@ -1186,7 +1186,7 @@ is set up in Section 1, before any app code, and used throughout.
           about. Corrected once the distinction was pointed out;
           confirmed live afterward that the cookbook view itself works
           as expected.
-    - [ ] 16.6 Commit and push.
+    - [x] 16.6 Commit and push. **Done 2026-08-30** — pushed as `87357aa`.
 
 ## Dev tooling improvements
 
