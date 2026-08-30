@@ -1106,6 +1106,88 @@ is set up in Section 1, before any app code, and used throughout.
           content, but not code anyone on this project wrote, reads, or
           maintains, so excluded the same way `node_modules` is.
 
+16. **Multi-line recipe instructions (`<textarea>` upgrade).** Chosen
+    2026-08-30 from `plan.md`'s "Not yet broken down" list (flagged
+    2026-08-28 during task 11.3). `RecipeManager.jsx`'s instructions field
+    is a single-line `<input>`, which can't hold a line break at all, so
+    every recipe's instructions are stuck as one run-on line — confirmed
+    the backend needs no changes at all: `instructions` is already a
+    plain `String?` (Postgres `text`) column, and Section 13's URL
+    importer already proved newlines survive a full round-trip through it
+    (`recipeInstructions.map(...).join('\n')`).
+    *Deliverable: type real multi-line instructions (actual Enter
+    presses) into a recipe, save it, and see those line breaks rendered
+    for real on the cookbook page — not one run-on sentence.*
+    - [x] 16.1 Frontend: swap the create/edit form's instructions
+          `<input>` for a `<textarea>` in `RecipeManager.jsx`; confirm
+          pressing Enter while typing actually inserts a line break
+          (check via the browser's dev tools / a quick log of the
+          `instructions` state), not just wraps visually.
+          **Completed 2026-08-30.** Self-authored in the editor (a
+          `TODO(you)` marker left in place of the line): same
+          `value`/`onChange`/`placeholder` props carried over unchanged,
+          correct on the first try, including the closing tag a
+          `<textarea>` needs that a self-closing `<input />` doesn't.
+          Correctly predicted, before touching the file, that pressing
+          Enter would insert a line break rather than doing nothing —
+          then correctly predicted a second, sharper distinction once
+          it was raised: the *old* `<input>`, sitting inside a `<form>`,
+          would have had Enter *submit the form* instead (a browser
+          default for text inputs, not textareas) — confirmed live both
+          times, no early submission, a real second line typed cleanly.
+    - [x] 16.2 Confirm the deliverable's persistence half: create a
+          recipe with real multi-line instructions, then click Edit on
+          it and confirm the textarea loads the exact same line breaks
+          back — proof the round trip through the backend survives, not
+          just guessed at.
+          **Completed 2026-08-30.** Correctly predicted, unprompted
+          reasoning from the already-understood fact that
+          `instructions` is a plain text column with no special
+          processing, that the exact same line breaks would come back
+          — confirmed live: saved a real 2-line recipe, clicked Edit,
+          textarea reloaded with the identical line breaks intact.
+    - [x] 16.3 Frontend: fix `RecipeView.jsx`'s display so the saved
+          line breaks actually render as separate lines (a plain
+          `<p>` collapses newlines by default) — real cookbook-style
+          steps, not one paragraph.
+          **Completed 2026-08-30.** Self-authored both blanks correct on
+          the first try: a `className="instructions"` on the `<p>` in
+          `RecipeView.jsx`, and a matching `.recipe-view .instructions {
+          white-space: pre-line; }` rule in `App.css`, nested the same
+          way as the file's existing `.recipe-view h2`/`.recipe-view li`
+          rules. Correctly predicted, before running, that the already-
+          saved 2-line recipe would now show as two real separate lines
+          instead of one run-on paragraph — confirmed live.
+    - [x] 16.4 Frontend: style the textarea in `App.css` (a sensible
+          height, resizable) so it looks intentional, not like a
+          leftover `<input>`.
+          **Completed 2026-08-30.** Self-authored both blanks correct on
+          the first try: `className="instructions-input"` on the
+          `<textarea>` in `RecipeManager.jsx`, and `.instructions-input
+          { height: 4em; resize: vertical; }` in `App.css`. Correctly
+          predicted, before touching anything, that `resize: vertical`
+          would allow dragging the corner handle to change height only,
+          never width — confirmed live, including that the field now
+          shows at a real multi-line height by default instead of one
+          cramped line.
+    - [x] 16.5 Confirm the full deliverable end-to-end: type a real
+          multi-line recipe, save it, open its cookbook view, and see
+          each step on its own line.
+          **Completed 2026-08-30.** A fresh, not-yet-used recipe (3 real
+          steps, typed with actual Enter presses) created and confirmed
+          via the actual cookbook view (opened by clicking the title —
+          `RecipeView.jsx`, task 16.3's fix), not just the Edit form.
+          One real gap surfaced and corrected first: initially answered
+          that multi-line steps would only show "after you click edit,"
+          conflating Edit's textarea (which always displays real line
+          breaks natively, no CSS involved — already proven in task
+          16.2) with the separate cookbook view opened by clicking the
+          recipe's title, the actual UI path this task's deliverable is
+          about. Corrected once the distinction was pointed out;
+          confirmed live afterward that the cookbook view itself works
+          as expected.
+    - [ ] 16.6 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -1131,13 +1213,6 @@ requested directly rather than as a plan task, recorded the same way.
 
 ## Not yet broken down
 
-- **Multi-line recipe instructions (`<textarea>` upgrade).** Flagged
-  2026-08-28 during task 11.3: `RecipeManager.jsx`'s instructions field
-  is a single-line `<input>`, which can't hold line breaks at all, so a
-  recipe's instructions can only ever be one run-on line — the cookbook
-  view's instructions styling has nothing real to show off yet. Raised
-  and deliberately deferred to keep task 11.3 scoped to just `RecipeView`
-  styling. Not yet turned into a task.
 - **Unit-name case sensitivity in `/api/grocery-list`'s `GROUP BY`.**
   Flagged 2026-08-28 during task 10.6: `GROUP BY` matches text exactly,
   so "Pound" (Spaghetti's unit) and "pound" (everything else) stayed

@@ -1,9 +1,9 @@
 import { useState, Fragment } from 'react';
 import RecipeView from './RecipeView.jsx';
 
-function RecipeManager({recipes, setRecipes}) {
+function RecipeManager({ recipes, setRecipes }) {
   const [title, setTitle] = useState('');
-  const [ingredients, setIngredients] = useState([{"name": "", "quantity": "", "unit": ""}]);
+  const [ingredients, setIngredients] = useState([{ "name": "", "quantity": "", "unit": "" }]);
   const [instructions, setInstructions] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [viewingRecipe, setViewingRecipe] = useState(null);
@@ -13,20 +13,20 @@ function RecipeManager({recipes, setRecipes}) {
     fetch(`${import.meta.env.VITE_API_URL}/api/recipes/import-from-url`, {
       method: 'POST',
       credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({url: importUrl})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: importUrl })
     })
-    .then(response => response.json())
-    .then(newRecipe => {
-      if(newRecipe.error){
-        alert(newRecipe.error);
-        return;
-      }
+      .then(response => response.json())
+      .then(newRecipe => {
+        if (newRecipe.error) {
+          alert(newRecipe.error);
+          return;
+        }
 
-      setRecipes([...recipes, newRecipe]);
-      setImportUrl('');
-    })
-    .catch(err => console.log(err))
+        setRecipes([...recipes, newRecipe]);
+        setImportUrl('');
+      })
+      .catch(err => console.log(err))
   }
 
   function handleDelete(id) {
@@ -34,11 +34,11 @@ function RecipeManager({recipes, setRecipes}) {
       method: 'DELETE',
       credentials: 'include'
     })
-    .then(response => {
-      if (response.status === 204) {
-        setRecipes(recipes.filter(recipe => recipe.id !== id));
-      }
-    })
+      .then(response => {
+        if (response.status === 204) {
+          setRecipes(recipes.filter(recipe => recipe.id !== id));
+        }
+      })
   }
 
   function handleEditClick(recipe) {
@@ -50,37 +50,39 @@ function RecipeManager({recipes, setRecipes}) {
 
   function handleSubmit(event) {
     event.preventDefault();
-    const recipeData = {title, ingredients, instructions};
+    const recipeData = { title, ingredients, instructions };
 
-    if(editingId) {
+    if (editingId) {
       fetch(`${import.meta.env.VITE_API_URL}/api/recipes/${editingId}`, {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(recipeData),
-      credentials: 'include'})
-      .then(response => response.json())
-      .then(updatedRecipe => {
-        setRecipes(recipes.map(recipe => recipe.id === updatedRecipe.id ? updatedRecipe : recipe));
-        setEditingId(null);
-        setTitle('');
-        setIngredients([{"name": "", "quantity": "", "unit": ""}]);
-        setInstructions('');
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recipeData),
+        credentials: 'include'
       })
-      .catch(err => console.error(err));
-    } else{
+        .then(response => response.json())
+        .then(updatedRecipe => {
+          setRecipes(recipes.map(recipe => recipe.id === updatedRecipe.id ? updatedRecipe : recipe));
+          setEditingId(null);
+          setTitle('');
+          setIngredients([{ "name": "", "quantity": "", "unit": "" }]);
+          setInstructions('');
+        })
+        .catch(err => console.error(err));
+    } else {
       fetch(`${import.meta.env.VITE_API_URL}/api/recipes`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(recipeData),
-      credentials: 'include'})
-      .then(response => response.json())
-      .then(newRecipe => {
-        setRecipes([...recipes, newRecipe]);
-        setTitle('');
-        setIngredients([{"name": "", "quantity": "", "unit": ""}]);
-        setInstructions('');
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recipeData),
+        credentials: 'include'
       })
-      .catch(err => console.error(err));
+        .then(response => response.json())
+        .then(newRecipe => {
+          setRecipes([...recipes, newRecipe]);
+          setTitle('');
+          setIngredients([{ "name": "", "quantity": "", "unit": "" }]);
+          setInstructions('');
+        })
+        .catch(err => console.error(err));
     }
   }
 
@@ -94,7 +96,7 @@ function RecipeManager({recipes, setRecipes}) {
       <ul>
         {recipes.map(recipe => (
           <li key={recipe.id} className="recipe">
-            <span onClick={() => setViewingRecipe(recipe)} style={{cursor: 'pointer'}}>{recipe.title}</span>
+            <span onClick={() => setViewingRecipe(recipe)} style={{ cursor: 'pointer' }}>{recipe.title}</span>
             <ul>
               {recipe.ingredients.map(ingredient => (
                 <li key={ingredient.id}>
@@ -115,16 +117,16 @@ function RecipeManager({recipes, setRecipes}) {
 
       <form onSubmit={handleSubmit}>
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" />
-        {ingredients.map((ingredient, index) => 
-        <Fragment key={index}>
-          <input value={ingredient.name} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? {...ingredient, name: e.target.value} : ingredient))} placeholder="Ingredient Name"></input>
-          <input value={ingredient.quantity} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? {...ingredient, quantity: e.target.value} : ingredient))} placeholder="Quantity"></input>
-          <input value={ingredient.unit} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? {...ingredient, unit: e.target.value} : ingredient))} placeholder="Unit"></input>
-          <button type="button" onClick={() => setIngredients(ingredients.filter((ingredient, i) => i !== index))}>Delete Ingredient</button>
-        </Fragment>
+        {ingredients.map((ingredient, index) =>
+          <Fragment key={index}>
+            <input value={ingredient.name} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? { ...ingredient, name: e.target.value } : ingredient))} placeholder="Ingredient Name"></input>
+            <input value={ingredient.quantity} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? { ...ingredient, quantity: e.target.value } : ingredient))} placeholder="Quantity"></input>
+            <input value={ingredient.unit} onChange={e => setIngredients(ingredients.map((ingredient, i) => i === index ? { ...ingredient, unit: e.target.value } : ingredient))} placeholder="Unit"></input>
+            <button type="button" onClick={() => setIngredients(ingredients.filter((ingredient, i) => i !== index))}>Delete Ingredient</button>
+          </Fragment>
         )}
-        <button type="button" onClick={() => setIngredients([...ingredients, {"name": "", "quantity": "", "unit": ""}])}>Add Ingredient</button>
-        <input value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Instructions" />
+        <button type="button" onClick={() => setIngredients([...ingredients, { "name": "", "quantity": "", "unit": "" }])}>Add Ingredient</button>
+        <textarea className="instructions-input" value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Instructions"></textarea>
         <button type="submit">Add Recipe</button>
       </form>
     </div>

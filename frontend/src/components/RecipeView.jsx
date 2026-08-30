@@ -9,7 +9,7 @@ function RecipeView({ recipe, onClose }) {
           </li>
         ))}
       </ul>
-      <p>{recipe.instructions}</p>
+      <p className="instructions">{recipe.instructions}</p>
       <button onClick={onClose}>Close</button>
     </div>
   );

@@ -34,3 +34,12 @@
 .recipe-view li {
   margin-bottom: 5px;
 }
+
+.recipe-view .instructions {
+  white-space: pre-line;
+}
+
+.instructions-input {
+  height: 4em;
+  resize: vertical;
+}
