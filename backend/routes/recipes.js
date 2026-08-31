@@ -1,6 +1,7 @@
 const express = require('express');
 const cheerio = require('cheerio');
 const { parseIngredient } = require('../lib/recipeParser.js');
+const { normalizeUnit, normalizeIngredient } = require('../lib/normalize.js');
 
 module.exports = (prisma) => {
     const router = express.Router();
@@ -10,7 +11,7 @@ module.exports = (prisma) => {
             data: {
                 title,
                 instructions,
-                ingredients: { create: ingredients.map(ingredient => ({ name: ingredient.name, quantity: ingredient.quantity, unit: ingredient.unit })) }
+                ingredients: { create: ingredients.map(ingredient => ({ name: normalizeIngredient(ingredient.name), quantity: ingredient.quantity, unit: normalizeUnit(ingredient.unit) })) }
             },
             include: { ingredients: true }
         });
@@ -78,7 +79,7 @@ module.exports = (prisma) => {
                     instructions,
                     ingredients: {
                         deleteMany: {},
-                        create: ingredients.map(ingredient => ({ name: ingredient.name, unit: ingredient.unit, quantity: ingredient.quantity }))
+                        create: ingredients.map(ingredient => ({ name: normalizeIngredient(ingredient.name), unit: normalizeUnit(ingredient.unit), quantity: ingredient.quantity }))
                     }
                 },
                 include: { ingredients: true }

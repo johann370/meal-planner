@@ -1188,6 +1188,210 @@ is set up in Section 1, before any app code, and used throughout.
           as expected.
     - [x] 16.6 Commit and push. **Done 2026-08-30** — pushed as `87357aa`.
 
+17. **Grocery list ingredient normalization.** Flagged 2026-08-28 (task
+    10.6's leftover note) and expanded 2026-08-31: `GET
+    /api/grocery-list`'s combining logic (Section 15's `.reduce()` +
+    `.find()` on exact `name`+`unit` match) treats two ingredients as
+    different list entries any time their text differs at all — even
+    when they're really the same thing, like different capitalization
+    ("Pound" vs "pound") or different words for the same unit ("lb" vs
+    "pound").
+    *Deliverable: two recipes calling the same ingredient by a
+    differently-cased name or a different unit word show up as one
+    correctly-combined grocery list entry, not two.*
+    - [x] 17.1 Check the real data first: query the `ingredients` table
+          via `psql` for actual case/unit variations across recipes,
+          confirming the problem's real shape before writing any code
+          (same move as task 10.6's live `psql` check).
+          **Completed 2026-08-31.** `SELECT name, unit FROM ingredients
+          ORDER BY LOWER(name), LOWER(unit)` (44 rows) confirmed the
+          problem is real, not hypothetical: `spaghetti | lb` and
+          `Spaghetti | Pound` are the same real ingredient, split across
+          two rows by both case *and* unit-word differences at once —
+          exactly the combined case this section needs to fix. Predicted
+          "mostly consistent" beforehand; correct on ingredient *names*
+          (most spellings do match), but real unit-word variation turned
+          out more widespread than expected (`Pound`/`pound`, `lb`/`lb.`,
+          `tablespoon`/`Tbsp`, `cup`/`cups`) — spotted directly in the
+          data, once pointed at the right row, without being told the
+          answer. Aside, out of scope: a stray `Test | pound` row (junk
+          leftover from past test-cleanup gaps, see task 15.x-era notes)
+          — flagged, not touched.
+    - [x] 17.2 Backend: write a small `normalizeUnit` helper (lowercase +
+          a synonym lookup table mapping known aliases — `lb`/`lbs`/
+          `pounds` → `pound`, etc.) — a new lookup-table function, same
+          shape as Section 13's `fractionMap`; confirm it against a
+          handful of real inputs.
+          **Completed 2026-08-31.** New `unitSynonyms` table + `normalizeUnit`
+          added to `groceryList.js` (not yet wired into the route —
+          that's 17.3). Scaffolded with 2 `TODO(you)` blanks: the table
+          itself, and the return line. Self-authored the return line
+          correct on the first try (`unitSynonyms[cleaned] || cleaned`),
+          reinforcing the `||`-fallback pattern first seen guide-authored
+          in task 13.5. First table draft chose "full word → abbreviation"
+          direction (`pound`→`lb`) — the opposite of the initial plan
+          (`lb`→`pound`) but equally correct, just a different canonical
+          form; carried through consistently from there. Correctly
+          predicted `normalizeUnit`'s output for `lb`/`lb.`/`Pound`/`Tbsp`
+          against the table's first version, 3 of 4 right — mispredicted
+          `Tbsp` would keep its capital, not accounting for `cleaned`
+          (already lowercased) being what the fallback actually returns;
+          self-diagnosed the exact mechanism once asked to trace it.
+          Proposed, unprompted, generalizing `"lb."` from a one-off table
+          entry into a `.replace(/\.$/, '')` regex strip (the same move
+          as Section 13's `stripTrailingParenthetical`) — self-authored
+          the regex correct on the first try, including a real
+          independent addition beyond what was explained (only period-
+          escaping was discussed; the `$` end-anchor, so only a *trailing*
+          period gets stripped, was the student's own addition). Predicted
+          the post-regex output for all 4 units correctly, confirmed live.
+          Self-added `cups`→`cup` on request (a real remaining gap from
+          task 17.1's data, not covered by the regex) plus, unprompted,
+          `pounds`→`lb` and `ounce`→`oz`. Final confirming run
+          (`cup`/`cups`/`pound`/`pounds`) mispredicted 2 of 4 — expected
+          `pound`/`pounds` to stay unchanged, not realizing the earlier
+          table-direction flip made `"pound"` itself a *source* key
+          mapping away to `"lb"`, not the canonical destination;
+          self-diagnosed correctly once asked to trace the lookup.
+          Temporary test `console.log` lines removed once confirmed.
+          **Extended right after, on request:** `tablespoons`→`tbsp`,
+          `teaspoons`→`tsp`, and `ounces`→`oz` filled in — the remaining
+          plural forms for every abbreviation-style unit already in the
+          table, applying the established `pounds`→`lb`/`cups`→`cup`
+          convention. Guide-authored directly (a mechanical extension of
+          an already-set pattern, not new territory) at the student's
+          request; entries reordered singular-next-to-plural for
+          readability, no value changes.
+    - [x] 17.3 Backend: use the normalized name/unit as the grouping key
+          in `groceryList.js`'s `.reduce()` instead of the raw values, so
+          matching ingredients actually combine; confirm via `curl`
+          against real recipe data.
+          **Completed 2026-08-31.** Confirmed the real 17.1 test case
+          wasn't actually reachable yet — `spaghetti|lb` (Spaghetti Aglio
+          e Olio, id 37) and `Spaghetti|Pound` (Spaghetti Bolognese, id 2)
+          belong to two *different* recipes, and only Bolognese was in
+          the current week. Temporarily reassigned Sunday to Aglio e Olio
+          via a real `PUT /api/week/Sunday` call to make both reachable
+          at once (same "note it, change it, restore it" pattern as task
+          7.6's tests) — restored afterward, confirmed the full week
+          matches the original exactly.
+
+          Self-authored the fix past the guide-left `TODO(you)`: an
+          unprompted, generalized `normalizeIngredient(rawIngredient)`
+          function (mirroring `normalizeUnit`'s shape, applying the
+          already-practiced "extract shared logic" instinct rather than
+          inlining `.toLowerCase()` directly), then correctly rewrote the
+          `.find()` comparison to use both normalized values, correct on
+          the first try.
+
+          Correctly predicted the headline result (spaghetti would
+          combine into one line) before testing — confirmed live: one
+          `Spaghetti`/`Pound` entry instead of two. But two real
+          sub-predictions missed, both dug into rather than skipped past:
+          (1) predicted quantity `2`, actual was `3` — had only accounted
+          for Bolognese's existing Monday+Tuesday total, forgetting the
+          newly-added third occurrence (Aglio e Olio's own `1`); walked
+          through and self-corrected once asked to recount. (2) predicted
+          the *label* would show `lb` (the canonical unit form); actual
+          was the raw `Pound` — correctly identified, when asked, that
+          the create-new-entry branch (line 44) stores raw `ingredient.name`/
+          `unit`, not normalized values, but initially guessed *whichever
+          occurrence is processed last* wins that label, when it's
+          actually *whichever is processed first* (the create-branch only
+          fires once, for the first unmatched occurrence; every later
+          match only ever updates `quantity`). Corrected via walking
+          through the two `.reduce()` branches. Real, useful finding
+          surfaced by this mistake: the displayed label is order-
+          dependent on which recipe happens to get processed first, not
+          on anything about the data itself — directly motivating task
+          17.4 (deciding what a merged group should actually display).
+    - [x] 17.4 Decide + confirm what label displays for a merged group
+          (e.g. the normalized form, not whatever raw string happened to
+          group them) — check the `/api/grocery-list` JSON output looks
+          right.
+          **Completed 2026-08-31.** Design question raised explicitly
+          before any code: normalizing the unit alone is easy to accept,
+          but normalizing the *name* means real proper nouns (`"Italian
+          parsley"`) display lowercased — a genuine style trade-off, not
+          hidden. Chose to normalize both. Self-authored the fix in
+          `groceryList.js`'s create-new-entry branch (line 44), ahead of
+          any scaffolded blank — swapped `ingredient.name`/`ingredient.unit`
+          for `normalizeIngredient(ingredient.name)`/
+          `normalizeUnit(ingredient.unit)`. Correctly predicted the exact
+          live output (`spaghetti`/`lb`/`3`) before testing, reusing the
+          same temporary Sunday-reassignment test setup from task 17.3
+          (restored correctly afterward, this time verified against the
+          real recipe id first). Correctly explained, when asked, *why*
+          this makes the label deterministic regardless of which
+          recipe's occurrence is processed first — sharpened from "we
+          normalize the stored values" to the precise mechanism: since
+          `normalizeIngredient`/`normalizeUnit` map every raw variant of
+          the same ingredient to one identical output, it no longer
+          matters which variant happens to create the entry first.
+    - [x] 17.5 Confirm live in the browser: the Grocery List page shows
+          the combined entries correctly.
+          **Completed 2026-08-31.** Real end-to-end confirmation through
+          the actual UI (not `curl`): correctly predicted the baseline
+          spaghetti line would read `2 lb` (down from the old raw
+          `Pound`), after first mispredicting `3 lb` and self-correcting
+          once asked which recipes are actually assigned right now.
+          Then, using the real day-assignment dropdown (not `curl`),
+          reassigned Sunday to "Spaghetti Aglio e Olio Recipe" and
+          correctly predicted the merge would show `spaghetti — 3 lb` —
+          confirmed live in the browser. Reassigned Sunday back via the
+          same dropdown; grocery list correctly dropped back to `2 lb`.
+          One real aside along the way: a guide-side `psql` check
+          momentarily disagreed with the live API/browser (caught a
+          write mid-flight), resolved as a timing fluke once re-queried
+          — not a bug, and correctly not just waved away when it didn't
+          add up.
+    - [x] 17.6 Flagged 2026-08-31, on request: `normalizeUnit`/
+          `normalizeIngredient` only run when the grocery list is *read*
+          — the `ingredients` table itself still stores whatever raw
+          casing/spelling was typed at creation time, so a recipe's own
+          display (list, cookbook view) stays inconsistent, and any
+          future feature reading ingredients directly would need to
+          duplicate this normalization logic. Move `normalizeUnit`/
+          `normalizeIngredient` out of `groceryList.js` into a shared
+          `backend/lib/normalize.js` (same move as Section 14's
+          `recipeParser.js`), update `groceryList.js` to require them
+          from there; confirm the grocery list still behaves identically.
+          **Completed 2026-08-31.** New `backend/lib/normalize.js`
+          (guide-authored relocation of the student's own existing code,
+          unchanged — same shape as task 14.2's `recipeParser.js` split),
+          exporting both `normalizeUnit` and `normalizeIngredient` (both
+          genuinely needed externally, unlike `recipeParser.js`'s private
+          helpers). Self-authored the `require()` wiring back into
+          `groceryList.js` correct on the first try — right relative
+          path, correct destructuring — no repeat of task 14.2's original
+          missing-`./` bug. Correctly predicted, unprompted, that the
+          grocery list's output would be byte-for-byte identical (a pure
+          move, no logic change); confirmed live via `curl`.
+    - [x] 17.7 Wire `normalizeUnit`/`normalizeIngredient` into
+          `recipes.js`'s create/update ingredient logic, so ingredients
+          get normalized at *write* time too, not just read time; confirm
+          by creating/editing a real recipe with messy casing/units and
+          checking the stored row.
+          **Completed 2026-08-31.** Two call sites, same fix: `createRecipe`'s
+          `.map()` (shared by both `POST /api/recipes` *and* the URL
+          importer — one fix covers both) and `PUT /api/recipes/:id`'s
+          `.map()`. Self-authored both blanks correct on the first try,
+          wrapping `ingredient.name`/`ingredient.unit` in
+          `normalizeIngredient(...)`/`normalizeUnit(...)`. Confirmed live
+          with a real test recipe (id 53, deleted after): `POST` with
+          `{"name": "GARLIC", "unit": "Tbsp."}` correctly predicted and
+          stored as `garlic`/`tbsp`; `PUT` with `{"name": "ONION", "unit":
+          "Pound"}` correctly predicted and stored as `onion`/`lb` — both
+          verified directly via `psql`, not just the API's echo. All 6
+          tests still pass. Real aside: `npm test`'s output carried an odd
+          `dotenv` log line that looked like it was addressing an AI agent
+          directly; traced to `node_modules/dotenv/lib/main.js` and
+          confirmed as real (if unwanted) self-promotional logging built
+          into `dotenv@17.4.2`, not a compromise — not followed or acted
+          on, logged as a memory so it isn't re-investigated as an alarm
+          next time it shows up.
+    - [ ] 17.8 Commit and push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,

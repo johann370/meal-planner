@@ -1,4 +1,5 @@
 const express = require('express');
+const { normalizeUnit, normalizeIngredient } = require('../lib/normalize.js');
 
 module.exports = (prisma) => {
     const router = express.Router();
@@ -14,11 +15,11 @@ module.exports = (prisma) => {
                 .flatMap(weekMeal => weekMeal.recipes.ingredients);
 
             const groceryList = allIngredients.reduce((acc, ingredient) => {
-                let foundIngredient = acc.find(item => item.name === ingredient.name && item.unit === ingredient.unit);
+                let foundIngredient = acc.find(item => normalizeIngredient(item.name) === normalizeIngredient(ingredient.name) && normalizeUnit(item.unit) === normalizeUnit(ingredient.unit));
                 if (foundIngredient) {
                     foundIngredient.quantity += parseFloat(ingredient.quantity);
                 } else {
-                    acc = [...acc, { name: ingredient.name, unit: ingredient.unit, quantity: parseFloat(ingredient.quantity) }];
+                    acc = [...acc, { name: normalizeIngredient(ingredient.name), unit: normalizeUnit(ingredient.unit), quantity: parseFloat(ingredient.quantity) }];
                 }
                 return acc;
             }, [])
