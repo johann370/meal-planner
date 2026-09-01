@@ -1,7 +1,7 @@
 import { useState, Fragment } from 'react';
 import RecipeView from './RecipeView.jsx';
 
-function RecipeManager({ recipes, setRecipes }) {
+function RecipeManager({ recipes, setRecipes, selectedDay, handleAssign, onClose, recipeManagerRef }) {
   const [title, setTitle] = useState('');
   const [ingredients, setIngredients] = useState([{ "name": "", "quantity": "", "unit": "" }]);
   const [instructions, setInstructions] = useState('');
@@ -91,21 +91,25 @@ function RecipeManager({ recipes, setRecipes }) {
   }
 
   return (
-    <div className="recipe-manager">
+    <div className="recipe-manager" ref={recipeManagerRef}>
       <h2>Manage Recipes</h2>
+      <button onClick={onClose}>Close</button>
       <ul>
         {recipes.map(recipe => (
-          <li key={recipe.id} className="recipe">
-            <span onClick={() => setViewingRecipe(recipe)} style={{ cursor: 'pointer' }}>{recipe.title}</span>
-            <ul>
-              {recipe.ingredients.map(ingredient => (
-                <li key={ingredient.id}>
-                  {`${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`}
-                </li>
-              ))}
-            </ul>
-            <button onClick={() => handleEditClick(recipe)}>Edit</button>
-            <button onClick={() => handleDelete(recipe.id)}>Delete</button>
+          <li key={recipe.id} className="recipe" onClick={() => handleAssign(selectedDay, recipe.id)} style={{ cursor: 'pointer' }}>
+            <span>{recipe.title}</span>
+            <button onClick={(e) => {
+              e.stopPropagation();
+              setViewingRecipe(recipe);
+            }}>View</button>
+            <button onClick={(e) => {
+              e.stopPropagation();
+              handleEditClick(recipe);
+            }}>Edit</button>
+            <button onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(recipe.id);
+            }}>Delete</button>
           </li>
         ))}
       </ul>

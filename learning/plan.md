@@ -1390,7 +1390,237 @@ is set up in Section 1, before any app code, and used throughout.
           into `dotenv@17.4.2`, not a compromise — not followed or acted
           on, logged as a memory so it isn't re-investigated as an alarm
           next time it shows up.
-    - [ ] 17.8 Commit and push.
+    - [x] 17.8 Commit and push. **Done 2026-08-31** — pushed as `7cf3a65`.
+          Correctly predicted, unprompted, that `git add .` would stage
+          both the 5 modified files *and* the new untracked
+          `backend/lib/normalize.js` together — confirmed.
+
+18. **Frontend styling pass.** Chosen 2026-08-31, at the student's
+    request. Survey found a decent design system already sitting unused
+    in `index.css` (CSS variables for color/light-dark mode, heading
+    styles) from the original Vite scaffold — but everything built after
+    Section 2 (`Login`, `RecipeManager`'s list/forms, `GroceryList`) has
+    zero custom styling at all, and `App.css`'s existing rules
+    (`.day`/`.recipe-view`) use hardcoded hex colors instead of the
+    theme variables already available.
+    *Deliverable: the app looks and feels like one consistent, designed
+    product end to end, not a mix of a styled cookbook page and raw
+    unstyled browser-default forms.*
+    - [x] 18.1 Flagged 2026-08-31, at the student's request: remove the
+          always-visible nested ingredient list under each recipe in
+          `RecipeManager.jsx` — a leftover from task 10.5, before
+          `RecipeView` (Section 11) existed to show ingredients properly
+          on click. Confirm clicking a recipe's title still opens the
+          full cookbook view with its ingredients intact.
+          **Completed 2026-08-31.** Self-authored the deletion, correct
+          and complete on the first try — removed exactly the nested
+          `.map()` block, left the title `<span>` and Edit/Delete buttons
+          untouched. Correctly predicted, unprompted, that ingredients
+          would still be reachable via `RecipeView` (a separate component
+          reading `recipe.ingredients` straight from its own prop,
+          unaffected by this deletion) — confirmed live: the list now
+          shows just title + Edit/Delete, and clicking a title still
+          opens the full cookbook view correctly.
+    - [x] 18.2 Flagged live by the student, 2026-08-31: the day-of-week
+          cards were different sizes, with Sunday alone wrapping to a
+          second row and stretching full-width. A real multi-round
+          debugging arc, not a single fix:
+          **Completed 2026-08-31.**
+          - Root cause #1 (diagnosed together, not self-found):
+            `flex-grow` distributes space *per flex line*, not across
+            the whole container — Sunday, alone on its own wrapped line,
+            grew to fill 100% of that line by itself. Correctly
+            predicted, before testing, that changing `.day`'s bare
+            `flex: 1` to `flex: 0 1 160px` (grow disabled) would stop
+            Sunday stretching and make all seven equal — confirmed live.
+          - Wanting one row instead of two, correctly predicted
+            (unprompted reasoning from task 2.3's already-understood
+            "shrink-before-wrap" mechanic) that `.week`'s `flex-wrap:
+            wrap` → `nowrap` would force all seven onto one line.
+            Confirmed, but exposed a real second gap: with `nowrap`, the
+            boxes overflowed off the page instead of shrinking to fit.
+            Correctly diagnosed, once pointed at flex items' default
+            `min-width: auto` floor (the exact same mechanic already
+            known from task 2.3, applied to a new failure mode —
+            overflow instead of wrap once the floor is hit), that the
+            `<select>`'s long recipe-title options were the un-shrinkable
+            content. Fixed with `.day { min-width: 0; }` (override the
+            floor) + `.day select { width: 100%; }` (make the select
+            actually shrink with its parent instead of dictating the
+            parent's width). Real, explicitly-discussed trade-off
+            surfaced and accepted: the *closed* select's text now
+            truncates at narrow widths (the *open* dropdown list is
+            unaffected, rendered separately by the browser).
+          - Wanting the boxes wider (the whole app only used ~60% of a
+            wide screen), correctly traced this to `index.css`'s `#root
+            { width: 1126px; }` — a fixed-width leftover from the
+            original Vite scaffold, capping the entire app's content
+            width, not just the day row. Confirmed the math matched the
+            student's own "~60%" observation (1126 ÷ ~1900 ≈ 59%).
+            Correctly predicted `width: 100%` would let content fill the
+            real window width, then correctly predicted, unprompted,
+            that the day boxes *themselves* wouldn't get wider from that
+            alone (`flex-grow: 0` means no growth, just more
+            `justify-content: space-between` gap) — both confirmed live
+            before re-enabling `flex-grow`.
+          - **Extended right after, at the student's request:** removed
+            `index.css` (and its now-unnecessary `import` in `main.jsx`)
+            entirely, wanting a genuine blank slate to style everything
+            personally rather than build on an unfamiliar Vite scaffold
+            theme. Confirmed only one reference existed before deleting.
+            Correctly predicted `.day`'s size would survive simplifying
+            `flex: 1 1 160px` back to bare `flex: 1`, now that `nowrap`
+            means there's only one flex line left for the original
+            per-line bug to hide in — confirmed live.
+          - **One more real gap, self-reported rather than missed
+            silently:** deleting `index.css` exposed an asymmetric left/
+            right page margin (its `body { margin: 0; }` reset was gone).
+            Diagnosed together via elimination — ruled out the `.day`
+            basis/box-sizing theory once the asymmetry survived removing
+            it — landing on the real cause: `.week` is a `<ul>`, and
+            browsheets give `<ul>` a default *left-only*
+            `padding-inline-start` (~40px, for bullet indentation) that
+            `index.css` used to silently absorb along with everything
+            else. Correctly predicted `.week { padding: 0; }` would fix
+            it — confirmed live, margins even.
+          - **Net deliverable confirmed:** all seven day cards equal
+            size, one row, filling the real window width, even margins —
+            and the app now starts from a true unstyled baseline (no
+            Vite theme, no resets) for the rest of this section's actual
+            styling work.
+    **Switched to freeform, 2026-08-31, at the student's request:** no
+    more pre-planned task list for the rest of this section — the
+    student picks what to style next, in the moment, and this becomes a
+    running log of what was actually done instead of a checklist decided
+    in advance. Still commit and push once a real chunk of work is done.
+
+    **Styling log:**
+    - (nothing logged yet — next entry goes here as work happens)
+
+19. **Recipe assignment via click, not `<select>`.** Chosen 2026-08-31,
+    at the student's request — anticipating the `<select>` dropdown
+    becoming unwieldy to scan once the recipe list grows much larger.
+    New flow: click a day (reusing the already-existing `selectedDay`
+    state from task 2.4) to select it, then click a recipe in the
+    Recipe Manager to assign it to that day.
+    *Deliverable: click a day, click a recipe, and see that day's meal
+    update — including the Grocery List refreshing — with no dropdown
+    involved at all.*
+    **Completed 2026-08-31**, design discussed before any code:
+    - Real UX conflict surfaced and resolved: a recipe click now means
+      "assign to selected day," so viewing a recipe (previously the
+      title's `onClick`, from task 11.2) needed a new home — moved to a
+      dedicated "View" button.
+    - Scoped deliberately: the *whole* `RecipeManager` (list + create/
+      edit form + URL import) only renders once a day is selected, not
+      just the list — explicitly chosen for now, with changes to the
+      always-visible-vs-not question for the add/edit form flagged as a
+      later task.
+    - `App.jsx`: the per-day `<select>` removed entirely; `RecipeManager`
+      now conditionally rendered via `{selectedDay && <RecipeManager
+      .../>}` — first use of this inline `&&`-short-circuit conditional
+      rendering pattern in the project (previously only the early-
+      `return` style, e.g. `if (!loggedIn) return <Login .../>`, had
+      been used). `selectedDay` and the existing `handleAssign` function
+      passed down as new props.
+    - `RecipeManager.jsx`: the recipe `<li>` itself now carries the
+      assign `onClick` (`handleAssign(selectedDay, recipe.id)`); a new
+      "View" button restores the old view-recipe behavior separately.
+      This surfaced a real, predicted-in-advance bug: with Edit/Delete/
+      View buttons nested inside the now-clickable `<li>`, clicking any
+      of them also fired the `<li>`'s own assign handler — event
+      bubbling, a first-in-project concept. Correctly predicted this
+      would happen, unprompted, once asked to think through what a
+      click on a nested button actually triggers. Self-authored the
+      `event.stopPropagation()` fix on the View button, correct on the
+      first try (multi-statement arrow function, `stopPropagation()`
+      called before the actual action); the identical fix then applied
+      to Edit/Delete by the guide, for speed, once the pattern was
+      already proven understood.
+    - Confirmed live, full loop: selecting a day showed the Recipe
+      Manager; clicking a recipe assigned it, the day's displayed meal
+      updated, and the Grocery List refreshed to match — all without a
+      dropdown anywhere in the flow. Edit/Delete/View all confirmed
+      *not* to trigger an accidental assignment anymore.
+    - Known, deliberately-not-yet-addressed gap: there's currently no
+      way to deselect a day (hide the Recipe Manager again) except by
+      selecting a *different* day — clicking the same day twice doesn't
+      toggle it off. Not fixed in this pass, not forgotten either.
+
+    **Paused here 2026-08-31, picking up next session — deselecting a
+    day.** A first attempt at this (close button + click-anywhere-else,
+    via `stopPropagation`/bubbling on `.main-layout`) was built, then
+    explicitly reverted at the student's request: they want to walk
+    through the plan and reach their own idea for the approach *before*
+    seeing code from now on — see the updated
+    [[prefers-working-out-problems-first]] memory for the full new
+    workflow (applies to functional/logic work, not styling).
+    Re-approached properly from there, entirely through guided
+    questions, no code shown:
+    - [x] **Task 1 (close button): done 2026-09-01.** Self-authored both
+      blanks correct on the first try, no hints beyond the design already
+      agreed the prior session — `App.jsx` passes `onClose={() =>
+      setSelectedDay(null)}` into `<RecipeManager>` (same shape as
+      `onLogin`), `RecipeManager.jsx` receives it and calls it from a new
+      `<button onClick={() => onClose()}>Close</button>`. Two real
+      reasoning checks passed along the way: (1) correctly recognized,
+      once asked to compare against `RecipeView.jsx`'s own `onClick=
+      {onClose}` Close button, that wrapping `onClose` in a new arrow
+      function makes no behavioral difference here — it takes no
+      parameters, so the click event React auto-passes to any `onClick`
+      handler is simply ignored either way, unlike the nearby
+      `stopPropagation` buttons which genuinely need the wrapper. (2)
+      correctly reasoned, once pointed at the JSX, that the missing
+      `type="button"` on this new button doesn't matter since it's a
+      sibling of `<form onSubmit={handleSubmit}>`, not a descendant —
+      task 10.4's "button defaults to submit" rule applied in reverse,
+      the first time reasoning about the rule's *scope* rather than just
+      fixing an already-triggered case. Confirmed live: correctly
+      predicted, before testing, that clicking Close would un-highlight
+      the selected day and hide `RecipeManager` with the Grocery List
+      unaffected — matched exactly.
+    - [x] **Task 2 (click anywhere else deselects): done 2026-09-01.**
+      Design re-derived via
+      `useRef` this time (a different, more standard technique than the
+      first attempt's `stopPropagation`/bubbling approach) — correctly
+      reasoned through every piece across several guided questions,
+      only needing two specific facts supplied (the `.contains()` method
+      name; that `useEffect` can `return` a cleanup function): refs
+      needed on both `.week` and `RecipeManager`'s root `<div>`; a
+      `document.addEventListener('click', ...)` (not React's own
+      `onClick`, since it must catch clicks anywhere) inside a
+      `useEffect`, checking `ref.current.contains(event.target)` for
+      both refs, calling `setSelectedDay(null)` if the click is outside
+      both; and — correctly reasoned unprompted — since `.week` lives in
+      `App.jsx` but `RecipeManager`'s own root element lives in a
+      *different* component, both refs and the `useEffect` belong in
+      `App.jsx`, with the `RecipeManager`-targeting ref passed down as
+      an ordinary prop and attached via `ref={theProp}` on its root
+      `<div>` (no `forwardRef` needed, since it's just a prop, not
+      referencing the component itself).
+      Implemented 2026-09-01, entirely self-authored from a
+      plain-language requirements list (no code shown): `weekRef`/
+      `recipeManagerRef` created with `useRef(null)`, attached to `.week`
+      directly and to `RecipeManager`'s root via a threaded-down prop; a
+      new `useEffect` registers a `document`-level click listener
+      checking both refs' `.contains(event.target)`, with a `return`ed
+      cleanup function (`useEffect`'s cleanup half, self-written for the
+      first time). Correctly predicted, unprompted, that wiring the refs
+      alone (before the listener existed) would change nothing visible —
+      same "unread values sit unused" reasoning as task 9.1. One real bug
+      correctly self-diagnosed and self-fixed before ever running it:
+      `recipeManagerRef.current` is `null` whenever `RecipeManager` isn't
+      mounted, so calling `.contains()` on it unguarded would throw —
+      correctly explained why, then supplied the exact `&&`-guard fix.
+      Confirmed live across every case that matters: clicking outside
+      both areas deselects the day; clicking a different day switches
+      selection normally; clicking a recipe row or its Edit/View/Delete
+      buttons inside `RecipeManager` does *not* accidentally trigger a
+      deselect.
+
+    **Section 19 complete, 2026-09-01.** Both deselect tasks done; not
+    yet committed — next session should commit Sections 18 and 19
+    together (neither has been pushed yet).
 
 ## Dev tooling improvements
 

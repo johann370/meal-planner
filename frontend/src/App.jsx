@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import RecipeManager from './components/RecipeManager.jsx'
 import GroceryList from './components/GroceryList.jsx'
@@ -9,6 +9,8 @@ function App() {
   const [week, setWeek] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [loggedIn, setLoggedIn] = useState(false);
+  const weekRef = useRef(null);
+  const recipeManagerRef = useRef(null);
 
   function fetchWeek() {
     fetch(`${import.meta.env.VITE_API_URL}/api/week`, {
@@ -22,8 +24,8 @@ function App() {
     fetch(`${import.meta.env.VITE_API_URL}/api/recipes`, {
       credentials: 'include'
     })
-    .then(response => response.json())
-    .then(data => setRecipes(data));
+      .then(response => response.json())
+      .then(data => setRecipes(data));
   }
 
   useEffect(() => {
@@ -33,17 +35,37 @@ function App() {
     }
   }, [loggedIn])
 
+  // TODO(you): a useEffect (empty dependency array) that:
+  //   - defines a click-handler function taking the event
+  //   - if the click landed inside weekRef OR recipeManagerRef (.contains(event.target)), does nothing
+  //   - otherwise calls setSelectedDay(null)
+  //   - registers that handler with document.addEventListener('click', ...)
+  //   - returns a cleanup function that removes it with document.removeEventListener('click', ...)
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if ((weekRef.current && weekRef.current.contains(event.target)) || (recipeManagerRef.current && recipeManagerRef.current.contains(event.target))) {
+        return;
+      } else {
+        setSelectedDay(null);
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    }
+  }, [])
+
 
   function handleAssign(day, recipeId) {
     fetch(`${import.meta.env.VITE_API_URL}/api/week/${day}`, {
       method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipeId }),
       credentials: 'include'
     })
-    .then(response => response.json())
-    .then(() => fetchWeek())
-    .catch(err => console.error(err));
+      .then(response => response.json())
+      .then(() => fetchWeek())
+      .catch(err => console.error(err));
   }
 
 
@@ -53,21 +75,17 @@ function App() {
 
   return (
     <>
-     <h1>Weekly Meals</h1>
-     <ul className="week">
-        {week.map((day => (<li key={day.day} className={selectedDay === day.day ? "day selected" : "day"} onClick={() => setSelectedDay(day.day)}>
-          <h2>{day.day}</h2>
-          <p>{day.meal}</p>
-          <select defaultValue="" onChange={e => handleAssign(day.day, e.target.value)}>
-            <option value="" disabled>Assign a recipe...</option>
-            {recipes.map(recipe => (
-              <option key={recipe.id} value={recipe.id}>{recipe.title}</option>
-            ))}
-          </select>
-        </li>)))}
-     </ul>
-     <RecipeManager recipes={recipes} setRecipes={setRecipes} />
-     <GroceryList week={week} />
+      <h1 id="weekly-meals-title">Weekly Meals</h1>
+      <div className="main-layout">
+        <ul className="week" ref={weekRef}>
+          {week.map((day => (<li key={day.day} className={selectedDay === day.day ? "day selected" : "day"} onClick={() => setSelectedDay(day.day)}>
+            <h2>{day.day.slice(0, 3)}</h2>
+            <p>{day.meal}</p>
+          </li>)))}
+        </ul>
+        {selectedDay && <RecipeManager recipes={recipes} setRecipes={setRecipes} selectedDay={selectedDay} handleAssign={handleAssign} onClose={() => setSelectedDay(null)} recipeManagerRef={recipeManagerRef} />}
+        <GroceryList week={week} />
+      </div >
     </>
   )
 }
