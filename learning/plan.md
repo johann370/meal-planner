@@ -1618,9 +1618,97 @@ is set up in Section 1, before any app code, and used throughout.
       buttons inside `RecipeManager` does *not* accidentally trigger a
       deselect.
 
-    **Section 19 complete, 2026-09-01.** Both deselect tasks done; not
-    yet committed — next session should commit Sections 18 and 19
-    together (neither has been pushed yet).
+    **Section 19 complete, 2026-09-01.** Both deselect tasks done.
+    Committed and pushed together with Section 18 as `6b00aaa`.
+
+20. **Unassigning recipes from a day.** Requested 2026-09-01, at the
+    student's request — three related pieces: a day needs to be able to
+    have no recipe at all (not just always-assigned), a way to unassign
+    a single day's recipe, and a way to clear every day's recipe at
+    once. The student explicitly asked to drive the breakdown and
+    approach themselves this time, rather than being handed a task
+    list — see the updated [[prefers-working-out-problems-first]]
+    memory. This entry records what the student actually chose to do,
+    in order, not a plan written in advance.
+    *Deliverable: a day can sit with no recipe and shows a clear
+    "+ Add Recipe" placeholder; an X button unassigns a single day; a
+    Clear Week button unassigns all seven at once — all confirmed live.*
+    **Completed 2026-09-01:**
+    - **Step 1 (unassigned days need to show up).** The student's own
+      first move: set Monday's `recipe_id` to `null` directly in the
+      database (bypassing the app entirely) to isolate the *read* side
+      first. Predicted this would produce "an error." Real result: no
+      error at all — `GET /api/week` returned a clean `200`, but with
+      only 6 days; Monday was silently missing entirely, traced to
+      `week.js`'s existing `.filter(row => row.recipes)` (added back in
+      Section 15 to prevent a crash, with this silent-drop as an
+      unintended side effect). Correctly reconciled the gap between
+      "error" and "silently missing" once shown the real response.
+      Self-authored the fix: dropped the `.filter()`, replaced with a
+      ternary inside the `.map()` (`row.recipes ? {...} : {day: row.day,
+      meal: null}`), correct on the first try. Confirmed via `curl`,
+      exactly matching a correct prediction beforehand (7 days, Monday's
+      `meal: null`). Frontend: correctly predicted `<p>{day.meal}</p>`
+      would render an empty-but-present `<p>` (not disappear), confirmed
+      live, then proposed a "+ Add Recipe" placeholder unprompted —
+      self-authored the ternary, confirmed live.
+    - **Step 2 (unassign one day).** The student's own design call: no
+      new route needed — reuse the existing `PUT /api/week/:day` with
+      `recipeId: null`. Predicted this would throw, reasoning that
+      `parseInt(null)` doesn't produce a usable number. Real result,
+      checked live via `curl` and confirmed with a direct `psql` column
+      check: it *worked* — but by accident, not design. `parseInt(null)`
+      really does evaluate to `NaN` (the prediction's underlying
+      mechanism was correct), but Prisma silently converted that `NaN`
+      into a real SQL `NULL` for this field rather than rejecting it — a
+      coincidence chain, not intentional code. Given the choice to leave
+      the accidentally-working code alone or make the intent explicit,
+      chose explicit: self-authored `recipe_id: recipeId ?
+      parseInt(recipeId) : null`, correct on the first try. Confirmed
+      both branches via `curl` (explicit null path, and normal
+      assignment still working), plus a `psql` check, then restored the
+      real dev data (noted beforehand: `Monday: 2, Tuesday: 7,
+      Wednesday: 7, Thursday: 4, Friday: 5, Saturday: 3, Sunday: 2`).
+      Frontend: self-authored an `X` button under the meal `<p>` in
+      `App.jsx`, gated on `day.meal` so it only shows when there's
+      something to unassign, calling `handleAssign(day.day, null)` —
+      self-corrected `day` → `day.day` before ever running it (the
+      `.map()` loop variable is the whole day object, not the day
+      string). Correctly predicted the resulting event-bubbling
+      collision (clicking X also re-selects the day, via the `<li>`'s
+      own `onClick`) once asked whether it rang a bell — direct
+      application of Section 19's `stopPropagation` lesson to a
+      brand-new location; self-authored the fix correct on the first
+      try. Confirmed live: unassigns correctly, day stays deselected.
+    - **Step 3 (clear the whole week).** The student's own design call
+      again: a new `DELETE /api/week/meals` route, introduced to
+      `prisma.<model>.updateMany({data: {...}})` (omitting `where`
+      updates every row) — a Prisma method not yet used in this
+      project. Self-authored the entire route solo, no scaffolding,
+      correct on the first try, including matching the app's existing
+      convention of a bare `204` for a mutation with nothing to return.
+      Correctly predicted the `204` + all-`null` result before testing;
+      confirmed via `curl`, then real data restored via `psql` again.
+      Frontend: self-authored `handleClearWeek` (a bare `DELETE`, no
+      body needed) and a "Clear Week" button as a sibling of `<ul
+      className="week">`. Correctly predicted, unprompted, a real
+      cross-feature interaction before testing: since the button sits
+      outside both `weekRef` and `recipeManagerRef`, clicking it also
+      triggers Section 19's click-outside-deselect listener, clearing
+      `selectedDay` as an incidental (and reasonable) side effect on top
+      of the week itself clearing. Confirmed live in the browser, both
+      effects together; real data restored via `psql` one final time
+      afterward.
+    - **Tests added 2026-09-01**, at the student's request, before
+      committing: two new self-authored tests in `app.test.js` — one for
+      `PUT /api/week/:day` unassigning (null `recipeId`), one for
+      `DELETE /api/week/meals` clearing every day at once. Both correct
+      after one self-caught bug (see `file-map.md`'s `app.test.js`
+      entry for the details). All 8 tests pass. Along the way, the
+      student raised a real, independent gap — tests currently restore
+      real data by hand instead of the suite resetting itself — flagged
+      above under "Not yet broken down" rather than fixed here.
+    - **Not yet done:** commit and push.
 
 ## Dev tooling improvements
 
@@ -1653,6 +1741,18 @@ requested directly rather than as a plan task, recorded the same way.
   separate rows instead of combining — a real data-quality gap, not a
   query bug. Not in task 10.6's scope (case-insensitive matching was
   never asked for) and not yet turned into a task.
+
+- **Tests shouldn't have to manually restore database state.** Flagged
+  2026-09-01 by the student, while writing a test for `DELETE
+  /api/week/meals`: every mutation test in `app.test.js` currently notes
+  the real data beforehand and restores it by hand afterward (`PUT
+  /api/week/:day`'s existing test, and the new unassign test, both do
+  this for one day; the new clear-week test needs it for all seven at
+  once). The real gap: tests should start from known-good data
+  automatically (e.g. a proper seed/reset step), not rely on each test's
+  own before/after bookkeeping to avoid corrupting real dev-adjacent
+  test data if a test fails partway through. Not yet turned into a task.
+
 ## Known issues (fixed)
 
 - **Task 10.5's edit-load half was already fixed by 10.4, not broken.**

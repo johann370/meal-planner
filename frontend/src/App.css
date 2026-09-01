@@ -27,6 +27,11 @@
   max-width: 25em;
 }
 
+#clear-week {
+  max-width: 5em;
+  max-height: 3em;
+}
+
 .day {
   list-style-type: none;
   border: 1px solid #333;

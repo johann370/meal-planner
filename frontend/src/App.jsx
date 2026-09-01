@@ -35,12 +35,6 @@ function App() {
     }
   }, [loggedIn])
 
-  // TODO(you): a useEffect (empty dependency array) that:
-  //   - defines a click-handler function taking the event
-  //   - if the click landed inside weekRef OR recipeManagerRef (.contains(event.target)), does nothing
-  //   - otherwise calls setSelectedDay(null)
-  //   - registers that handler with document.addEventListener('click', ...)
-  //   - returns a cleanup function that removes it with document.removeEventListener('click', ...)
   useEffect(() => {
     function handleClickOutside(event) {
       if ((weekRef.current && weekRef.current.contains(event.target)) || (recipeManagerRef.current && recipeManagerRef.current.contains(event.target))) {
@@ -68,6 +62,15 @@ function App() {
       .catch(err => console.error(err));
   }
 
+  function handleClearWeek() {
+    fetch(`${import.meta.env.VITE_API_URL}/api/week/meals`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+      .then(() => fetchWeek())
+      .catch(err => console.error(err));
+  }
+
 
   if (!loggedIn) {
     return <Login onLogin={() => setLoggedIn(true)} />
@@ -80,9 +83,14 @@ function App() {
         <ul className="week" ref={weekRef}>
           {week.map((day => (<li key={day.day} className={selectedDay === day.day ? "day selected" : "day"} onClick={() => setSelectedDay(day.day)}>
             <h2>{day.day.slice(0, 3)}</h2>
-            <p>{day.meal}</p>
+            <p>{day.meal ? day.meal : "+ Add Recipe"}</p>
+            {day.meal && <button className="unassign-button" onClick={(e) => {
+              e.stopPropagation();
+              handleAssign(day.day, null);
+            }}>X</button>}
           </li>)))}
         </ul>
+        <button id="clear-week" onClick={handleClearWeek}>Clear Week</button>
         {selectedDay && <RecipeManager recipes={recipes} setRecipes={setRecipes} selectedDay={selectedDay} handleAssign={handleAssign} onClose={() => setSelectedDay(null)} recipeManagerRef={recipeManagerRef} />}
         <GroceryList week={week} />
       </div >
