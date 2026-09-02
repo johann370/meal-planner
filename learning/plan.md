@@ -1708,7 +1708,271 @@ is set up in Section 1, before any app code, and used throughout.
       student raised a real, independent gap — tests currently restore
       real data by hand instead of the suite resetting itself — flagged
       above under "Not yet broken down" rather than fixed here.
-    - **Not yet done:** commit and push.
+    - **Committed and pushed 2026-09-01** as `3969fc7`.
+
+21. **AI recipe suggestions — data design.** Scoped 2026-09-01, at the
+    student's request; **not started, no implementation work done.** The
+    feature: a "Suggest a Recipe" button, plus an optional free-text
+    "what I'm craving" input, that returns a suggestion informed by what
+    the student actually cooks. This section is the *data map* only —
+    what would get sent to Claude, and what the app would therefore need
+    to store. Task breakdown deliberately left for later, per
+    [[prefers-working-out-problems-first]].
+
+    **How the AI part actually works** (settled before mapping data):
+    no training, no fine-tuning, no model hosted anywhere. Each
+    suggestion is one stateless Claude API call — the backend gathers
+    this data from Postgres, puts it in a prompt, and gets one structured
+    response back. Claude remembers nothing between calls; the sense that
+    it "knows your tastes" comes entirely from what gets re-sent each
+    time. That's *why* this data map is the real design work: the data
+    sent **is** the feature. Cost at this app's scale is roughly
+    $0.01–$0.03 per suggestion (under ~$1/month at realistic personal
+    use); the `ANTHROPIC_API_KEY` must live server-side only
+    (`backend/.env` + Render), never in frontend code.
+
+    ### A. Recipe catalog — what's available to suggest from
+
+    | Data | Status today | Notes |
+    |---|---|---|
+    | Title | **Exists** (`recipes.title`) | — |
+    | Ingredients (name/qty/unit) | **Exists** (`ingredients` table, already normalized by `lib/normalize.js`) | Main signal for "what kind of food is this" |
+    | Instructions | **Exists** (`recipes.instructions`) | Step count is *derivable* (count lines) — no column needed |
+    | Cook / prep / total time | **Free — already fetched, discarded** | schema.org `cookTime`/`prepTime`/`totalTime`, ISO-8601 (`"PT30M"`) |
+    | Tags (dish type, cuisine, keywords) | **Free — already fetched, discarded** | schema.org `recipeCategory`, `recipeCuisine`, `keywords` |
+    | Star rating + review count | **Free — already fetched, discarded** | schema.org `aggregateRating` |
+    | Servings | **Free — already fetched, discarded** | schema.org `recipeYield` |
+    | Favorite flag | **New** | User action; a boolean on `recipes` |
+    | Personal rating | **New** | User action; in-app rating, separate from the site's |
+
+    **The "free" finding, in detail:** `routes/recipes.js:43` already
+    parses the *entire* schema.org Recipe object from an imported URL,
+    then uses exactly three fields (`name`, `recipeIngredient`,
+    `recipeInstructions`) and throws the rest away. Cook time, tags,
+    cuisine, star rating, and servings are all sitting in `recipeData`
+    already — capturing them is parse-and-store, no new data source.
+    **Caveat:** only imported recipes have them. Hand-typed recipes
+    (`POST /api/recipes`) would have these fields blank unless entered
+    manually, so any field sourced this way is patchy across the catalog
+    and the prompt has to tolerate missing values.
+
+    ### B. Behavioral history — the actual "taste" signal
+
+    | Data | Status today | Notes |
+    |---|---|---|
+    | Past weeks' plans | **Missing — the big prerequisite** | `week_meal` holds exactly one mutable week; a reassigned day is simply gone. Needs the "Multiple weeks / history" parking-lot item first |
+    | Whether a meal was really cooked | **New** | See the decision below |
+    | Times each recipe has been used | **Derived** from history — no column |
+    | How long since last cooked | **Derived** from history — no column |
+
+    **Decision made 2026-09-01 on "used vs. changed my mind":** hybrid —
+    time-based by default (a day still assigned when the week rolls over
+    is *assumed* cooked, zero user effort), plus an explicit user
+    override to mark a meal as **not** cooked after the fact. Chosen over
+    pure time-based (can't distinguish "cooked it" from "ordered takeout
+    instead") and over a mark-as-cooked button (needs remembering every
+    time; unpressed days become ambiguous rather than negative). This
+    means history rows need a `cooked` flag defaulting to true, flippable
+    by the user — not just a raw log of assignments.
+
+    ### C. Suggestion feedback loop
+
+    | Data | Status today | Notes |
+    |---|---|---|
+    | Suggestions made, and whether accepted | **New** | A rejected suggestion is real negative signal — the only source of "no, not this" the app would have |
+
+    ### D. Per-request input (nothing stored)
+
+    - The craving text (`"something spicy and quick"`), typed fresh each
+      time and passed straight into the prompt.
+
+    ### Findings worth remembering
+
+    - **"Popular across people's plans" doesn't apply here.** This is a
+      single-user app — there are no other people's plans to count.
+      "Popular" collapses into "how often *you* use it," which is the
+      same signal as section B. It only becomes a distinct signal if the
+      "Personal user accounts" parking-lot item ever gets built.
+    - **"Extract keywords like vegetarian/quick" is two different
+      things.** Interpreting the *request* ("I'm vegetarian", "nothing
+      fussy tonight") is Claude's job at call time and needs no storage
+      at all. Knowing whether a given *recipe* qualifies is recipe
+      metadata — tags and cook time, i.e. section A. Only the second half
+      is a data problem.
+    - **Tag storage is an open question:** a real `tags` table with a
+      many-to-many join (consistent with how `ingredients` was done) vs.
+      a simple delimited string column. Not decided.
+    - **Token cost scales with the catalog**, so the prompt should send
+      a trimmed view (title, ingredients, tags, time, ratings) rather
+      than full instructions for every recipe.
+
+    ### What this implies would need building (not yet tasks)
+
+    1. Week history — the prerequisite for section B, and the single
+       biggest piece.
+    2. Capturing the already-fetched schema.org fields on import, plus
+       columns to hold them.
+    3. User-supplied signals: favorite flag, in-app rating, "didn't
+       actually cook this" override.
+    4. A suggestion log, for section C.
+    5. Only then: the Claude call itself — a backend route, a prompt
+       assembled from the above, structured output, and the frontend
+       button + craving input.
+
+22. **Recipe add/edit redesign — merge into `RecipeView`.** Requested
+    2026-09-02, at the student's request: replace the old always-visible,
+    flat add/edit form in `RecipeManager.jsx` (bare labeled inputs, a
+    "Delete Ingredient" button per row) with something that reads like
+    the existing read-only `RecipeView` — editable in place, still able
+    to add/remove ingredients.
+    *Deliverable: one panel that looks like the recipe view in both
+    modes, unlocking into real inputs only once Edit is clicked.*
+
+    Design settled through guided discussion before any code, every call
+    made by the student:
+    - Edit takes over the full panel the way View already does, instead
+      of sitting bolted below the recipe list — and Edit moves *out* of
+      the list entirely, living only inside the panel itself. Delete
+      moves there too, alongside Edit.
+    - One set of inputs, not two parallel view/edit JSX blocks: styled to
+      look like plain text in view mode, real input styling only once
+      `isEditing` is true — toggled via `readOnly`, not conditional
+      rendering.
+    - Ingredient fields (qty/unit/name) stay separate rather than
+      free-parsed from one combined field.
+    - "New Recipe" opens the same panel, starting directly in edit mode
+      with blank fields.
+    - Save settles back into view mode showing the result. Cancel on an
+      existing recipe discards edits back to view mode; Cancel on a
+      not-yet-saved new recipe should close back to the list instead —
+      noted but not yet exercised, since no "New Recipe" trigger exists
+      yet (see below).
+
+    Two real bugs hit mid-build, both worked through via guided questions
+    per [[prefers-working-out-problems-first]] (functional/logic, not
+    styling) and self-diagnosed by the student before any fix was shown:
+    - **Click-outside closed the panel on every click.**
+      `RecipeManager`'s early return (`if (viewingRecipe) return
+      <RecipeView .../>`) skipped the `<div>` carrying `recipeManagerRef`
+      entirely, so `recipeManagerRef.current` was `null` the whole time
+      the panel was showing — `App.jsx`'s document-level click-outside
+      listener treated every click inside the panel as "outside" and
+      deselected the day. Walked through via questions (does the early
+      return render the ref'd div? what does that make `.current`?)
+      until the student named both possible fixes unprompted (thread the
+      same ref into `RecipeView`, or give it a second ref) and reasoned
+      through the tradeoff themselves — a second ref means a third
+      branch in `App.jsx`'s `handleClickOutside` check — before picking
+      and self-implementing reuse: `recipeManagerRef` passed down as a
+      prop to `RecipeView` and attached to its own root `<div>`.
+    - **"Delete Ingredient" closed the panel too.** Removing its own
+      `<li>` (React's synchronous commit) happened *before* that same
+      native click event finished bubbling to `document`'s click-outside
+      listener, so `event.target` was already detached from the DOM by
+      the time `.contains()` ran — evaluating `false` and closing the
+      whole panel. Walked through step by step (what happens to the
+      button element the instant it's clicked; what `.contains()`
+      returns for a detached node) until the student correctly reasoned
+      "false, since it's not there anymore" unprompted, then proposed
+      `stopPropagation()` themselves — correctly recognizing it as the
+      same pattern already used by the list's View/Edit/Delete buttons.
+      Self-implemented as a named `handleDeleteIngredient` function.
+
+    A string of direct technique questions along the way, answered
+    outright rather than guided (factual "how do I..." territory, not
+    problem-solving): stripping default input/textarea chrome (`border`/
+    `background`/`outline`/`padding`/`font: inherit`); `readOnly` vs.
+    `disabled` for gating editability without the UA's disabled-gray
+    styling; hiding the caret (`caret-color: transparent`) and pointer
+    (`cursor: default`) in read mode; `field-sizing: content` for
+    width- and height-fit-to-content (Firefox support confirmed live by
+    the student; Safari's confirmed via web search — both shipped by
+    mid-2026, no fallback needed); and the box-model trick for keeping
+    input/textarea height stable across the read/edit border-and-padding
+    swap — reserve identical border width and padding in both states,
+    swap only the color.
+
+    One real CSS limit surfaced and correctly *not* worked around:
+    `line-height` can't distinguish a manually-typed line break from one
+    forced by wrapping, so "more space between typed instructions, tight
+    spacing within one wrapped instruction" isn't achievable in a single
+    `<textarea>`. Traced to its actual fix — instructions as an array of
+    steps, same shape as `ingredients` — and logged under "Not yet broken
+    down" as a future section rather than attempted here, since it's a
+    schema/migration change, not a styling one.
+
+    Several rounds of review (not implementation) as the student
+    self-authored the `RecipeManager`/`RecipeView` merge, catching and
+    self-fixing, in order:
+    1. `handleSave`'s PUT branch referenced undefined `setRecipes`/
+       `recipes`/`setEditingId` — leftovers from the old form's state,
+       which no longer lived in this component. Fixed by threading
+       `setRecipes`/`recipes` down as props from `RecipeManager`, and
+       replacing the `setEditingId` remnant with `setIsEditing(false)`.
+    2. The instructions `textarea` wasn't gated by `readOnly={!isEditing}`
+       like the ingredient inputs were — added.
+    3. `.recipe-view-read`'s CSS only covered `input`, not `textarea` —
+       extended once the gap was pointed out.
+    4. The PUT-vs-POST branch was keyed off `isEditing` (true for both
+       "editing" and "filling out new," once a "New Recipe" path exists)
+       instead of whether the recipe actually has an `id` — replaced with
+       `Object.hasOwn(recipe, 'id')`, itself later superseded once the
+       "New Recipe" sentinel (`{ id: null, ... }`) existed: `Object.hasOwn`
+       would have seen the `id` key present even when `null` and wrongly
+       attempted `PUT /api/recipes/null`. Final form: a plain truthy
+       `if (recipe.id)`, correctly self-chosen once that sentinel shape
+       was in play.
+    5. The POST (new-recipe) success handler called a nonexistent
+       `setRecipe` — fixed correctly and completely by lifting `recipe`
+       into `RecipeManager`'s existing `viewingRecipe` state and
+       threading `setRecipe={setViewingRecipe}` down as a prop, letting a
+       newly-created recipe's real `id` flow back into the same panel
+       instance for any edit afterward.
+    6. Dead code from the old form cleaned up along the way: the unused
+       `Fragment` import and the now-orphaned `handleEditClick`.
+
+    The two remaining pieces from the design got built next, both
+    self-authored, both with a real bug hit and fixed along the way:
+    - **"New Recipe" trigger.** A button in `RecipeManager`'s list opens
+      the panel via `setViewingRecipe({ id: null, title: '', ingredients:
+      [{ name: '', quantity: '', unit: '' }], instructions: '' })` —
+      `isEditing` now initialized from `recipe.id === null` so a new
+      recipe opens straight into edit mode, and `handleCancelEdit` now
+      branches on `recipe.id` (revert-to-view for an existing recipe,
+      `onClose()` for an unsaved new one) — closing the gap flagged
+      above. One review round caught the ingredients seed as `['']` (an
+      array of one *string*) instead of `[{ name: '', quantity: '', unit:
+      '' }]` — self-fixed to match the shape `RecipeView` actually reads.
+      A second, more interesting bug: clicking "New Recipe" closed the
+      whole day/panel, because it triggers the exact same click-outside
+      mechanism as the Delete Ingredient bug from earlier in this
+      section — `RecipeManager`'s early return swaps its whole subtree
+      (New Recipe button included) for `<RecipeView>` before the native
+      click finishes bubbling to `document`. Self-recognized as the same
+      class of bug on sight this time, once asked "does this look
+      familiar?", and self-fixed with the same `stopPropagation()`
+      pattern. Worth noting against the guide: this button's
+      `stopPropagation()` had been called unneeded in the prior review
+      round, on the reasoning that nothing else claims its click — true
+      for React's synthetic bubbling, but wrong for this DOM-detachment
+      case, which doesn't need a competing handler at all.
+    - **Delete moved into the panel.** Removed from `RecipeManager`'s
+      list entirely; added to `RecipeView`'s header next to Edit/Cancel,
+      guarded (`if (!recipe.id) return;`) against firing on an unsaved
+      recipe, and calling `onClose()` after a successful delete to return
+      to the list. No `stopPropagation()` needed here, correctly left
+      off — the DOM change happens inside the `fetch(...).then()`
+      callback, well after the click event's bubble phase has already
+      finished, unlike the synchronous-state-update cases above. One
+      review round caught the button's visibility gated on `isEditing`
+      alone, meaning Delete showed (harmlessly, but confusingly) while
+      still filling out a brand-new unsaved recipe; self-fixed by adding
+      `recipe.id` to the condition.
+
+    **Section 22 complete, 2026-09-02.** Both "New Recipe" and Delete are
+    live in the panel view; the whole recipe add/edit flow now looks like
+    `RecipeView` in both modes, exactly as scoped. Not yet committed —
+    see git status.
 
 ## Dev tooling improvements
 
@@ -1752,6 +2016,29 @@ requested directly rather than as a plan task, recorded the same way.
   automatically (e.g. a proper seed/reset step), not rely on each test's
   own before/after bookkeeping to avoid corrupting real dev-adjacent
   test data if a test fails partway through. Not yet turned into a task.
+
+- **Instructions as separate steps, not one text blob.** Flagged
+  2026-09-02 by the student, while redesigning the recipe view/edit
+  panel: pressing Enter between instructions and having the text wrap
+  (long line, narrow textarea) both produce a line break, but CSS
+  `line-height` can't tell those two cases apart — a manual line break
+  and a wrap-forced one get identical spacing, so "more space between
+  instructions, tight spacing within one wrapped instruction" isn't
+  achievable with a single `<textarea>`/string. The fix considered:
+  store instructions as an array of steps, same shape as `ingredients`
+  (its own table or JSON column instead of one text field), rendered as
+  rows with the same add/remove pattern already built for ingredients —
+  sidesteps the line-height limitation entirely since each step is its
+  own element. Real scope: a schema/migration change (supersedes
+  Section 16's single-text-with-newlines approach), existing recipes'
+  instructions would need splitting on `\n` to migrate, and the create
+  /update routes plus import-from-URL parsing would all need to speak
+  "array of steps" instead of one string. Notable in its favor: schema
+  .org's `recipeInstructions` (already parsed on import) is commonly an
+  array of `HowToStep` objects to begin with, so today's import is
+  likely flattening already-structured data into one string — same
+  "already fetched, discarded" situation as the cook-time/tags/rating
+  fields noted in section 21's data map. Not yet turned into a task.
 
 ## Known issues (fixed)
 

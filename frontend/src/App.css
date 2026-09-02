@@ -92,20 +92,61 @@
   margin: 0 auto;
 }
 
-.recipe-view h2 {
-  border-bottom: 1px solid #ccc;
+#recipe-view-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #232323;
   padding-bottom: 10px;
+}
+
+#recipe-view-title {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.recipe-view input {
+  field-sizing: content;
+  border: 1px solid transparent;
+  padding: 2px;
+  font: inherit;
+  color: inherit;
+  font-size: 1.25em;
+}
+
+.recipe-view-edit input {
+  border-color: #ccc;
+  background: white;
+}
+
+.recipe-view-read input {
+  outline: none;
+  caret-color: transparent;
+  cursor: default;
 }
 
 .recipe-view li {
   margin-bottom: 5px;
 }
 
-.recipe-view .instructions {
-  white-space: pre-line;
-}
 
 .instructions-input {
-  height: 4em;
-  resize: vertical;
+  width: 80%;
+  field-sizing: content;
+  resize: none;
+  font: inherit;
+  color: inherit;
+  line-height: 1.5;
+  border: 1px solid transparent;
+  padding: 2px;
+}
+
+.recipe-view-edit .instructions-input {
+  border-color: #ccc;
+  background: white;
+}
+
+.recipe-view-read .instructions-input {
+  outline: none;
+  caret-color: transparent;
+  cursor: default;
 }
