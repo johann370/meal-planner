@@ -1979,8 +1979,10 @@ is set up in Section 1, before any app code, and used throughout.
     isn't responsive, and the student's own instinct going in was that
     media queries alone wouldn't be enough given how the page is
     structured — confirmed correct through the design discussion below.
-    **Not started, no implementation work done** — this is the design
-    only, queued to build 2026-09-03.
+    **Core implementation done, 2026-09-03** — built solo, end to end, no
+    pre-planned task checklist (the design below was worked out in
+    advance, but the build itself was freeform, logged after the fact —
+    same shape as Section 20). Committed as `438f8b2`.
 
     Root cause, confirmed by the student resizing their own logged-in
     browser to phone width (a screenshot attempt on this end only
@@ -2025,28 +2027,77 @@ is set up in Section 1, before any app code, and used throughout.
       before the media query has anything reliable to select (a
       positional selector would be fragile).
 
-    ### What this implies would need building (not yet tasks)
+    ### What actually got built, 2026-09-03
 
-    1. A breakpoint decision (what counts as "mobile").
-    2. New state driving which of the three panes is "active" on mobile
-       — likely a `showGroceryList`-style toggle, kept separate from but
-       coordinating with the existing `selectedDay` state.
-    3. A toggle button for Grocery List, visible only below the
-       breakpoint (mirrors the Close-button-hidden-on-desktop idea, just
-       inverted).
-    4. `className`s added to both Close buttons so they're targetable.
-    5. The actual media query work: hiding non-active panes below the
-       breakpoint, full-width layout for whichever is active, Close
-       buttons hidden above it.
+    Went further than the original "just add a GroceryList toggle"
+    scope — all three panes ended up on one unified pattern instead of
+    treating GroceryList as the special case:
+    1. **Breakpoint: `768px`**, via `window.matchMedia('(min-width:
+       768px)')` in `App.jsx`, not a bare CSS media query alone — needed
+       in JS too since the toggle state has to behave differently on
+       each side of it (see the original design reasoning above, which
+       held up).
+    2. **`Week.jsx` extracted** from `App.jsx`, as flagged — now a
+       fourth pane component alongside `RecipeManager`/`GroceryList`,
+       taking `week`/`selectedDay`/`onSelectDay`/`handleAssign`/
+       `handleClearWeek` as props (Clear Week moved inside it, since
+       it's part of the same pane).
+    3. **New `MobileMenu.jsx`** — not just a single GroceryList toggle as
+       originally scoped, but a full 3-button nav (Planner / Recipes /
+       Grocery List), each button setting all three `displayWeek`/
+       `displayRecipeManager`/`displayGroceryList` state flags at once
+       (one `true`, the other two `false`). Only rendered below the
+       breakpoint (`#mobile-menu { display: none }` at `768px+`).
+    4. **State unified across all three panes**, not just GroceryList:
+       `displayWeek`/`displayRecipeManager`/`displayGroceryList` in
+       `App.jsx`, each pane rendering a `hidden-mobile` class (renamed
+       from an initial plain `hidden`, for clarity) when its flag is
+       `false`. A `handleMediaQueryChange` listener on the same
+       `matchMedia` object forces all three back to visible whenever the
+       screen crosses back to `768px+`.
+    5. **`className`s added** to `RecipeManager`'s and `GroceryList`'s
+       Close buttons (`mobile-close-button`), hidden on desktop via
+       `.mobile-close-button { display: none }` inside the `768px+`
+       query. `RecipeView`'s own Close button deliberately left
+       un-classed — it isn't part of the pane-switching system at all
+       (an early-return replacing `RecipeManager`'s content, always
+       shown when active regardless of screen width), so it stays
+       visible on both.
+    6. **Superseded Section 19's click-outside-to-deselect entirely**:
+       the `weekRef`/`recipeManagerRef` refs, the `document` click
+       listener, and its cleanup were all removed from `App.jsx`,
+       `Week.jsx`, `RecipeManager.jsx`, and `RecipeView.jsx` — the
+       explicit Close buttons now the only way to back out of a pane,
+       which the mobile nav model needs anyway.
 
-    **Also flagged, 2026-09-02, at the student's request — not yet
-    done:** pull the week list out of `App.jsx` into its own component
-    (`Week.jsx` or similar), matching `RecipeManager` and `GroceryList`,
-    which already live separately. `App.jsx` currently owns the week
-    `<ul>` markup directly, inline. Not filed as its own numbered
-    section — most naturally folds into this one, since treating Week as
-    a symmetric "pane" alongside RecipeManager/GroceryList is exactly
-    what the one-screen-at-a-time design above needs.
+    Two real bugs found via a "check my code" review pass and fixed
+    (both confirmed with a follow-up re-check):
+    - A prop-name typo (`handleAssing` passed from `App.jsx`, but
+      `Week.jsx` destructures `handleAssign`) meant the unassign "X"
+      button would throw `TypeError: handleAssign is not a function` on
+      click — predated this session's edits, just never triggered.
+    - `onSelectDay` was unconditionally re-forcing
+      `displayRecipeManager`/`displayWeek` even when *deselecting* the
+      current day (clicking it a second time) — harmless in the common
+      case, but meant RecipeManager could stay open with no day
+      selected. Fixed by moving those two calls into the "select a
+      different day" branch only.
+
+    Also hit, and fixed independently along the way: a class-vs-id
+    specificity conflict (`#week` couldn't be beaten by a `.hidden`
+    class no matter where `.hidden` sat in the file — an ID always
+    outranks a class), resolved by moving `.week` off an id onto a
+    plain class; and a second, narrower specificity case — forcing Week
+    to stay visible on desktop even while `hidden-mobile` is set —
+    solved with a compound `.week.hidden-mobile { display: flex; }`
+    selector inside the `768px+` query, deliberately more specific than
+    the bare `.hidden-mobile` rule.
+
+    Not yet done: a dedicated end-to-end pass confirming both the
+    full mobile flow (Planner ↔ Recipes ↔ Grocery List, one pane at a
+    time) and the full desktop flow (all panes, no mobile-close buttons
+    visible) together in one sitting, the way Section 22 closed out —
+    today's testing was incremental, per-change.
 
 ## Dev tooling improvements
 
@@ -2070,6 +2121,17 @@ requested directly rather than as a plan task, recorded the same way.
       page refresh still shows the login form once — only mid-session
       401s after a backend restart are what this fixes; left as-is by
       choice rather than also patching the frontend.
+- [x] **Fix Render deploy: generate the Prisma client on install.**
+      2026-09-03: the student found a live Render deploy failing with
+      "cannot find ./generated/prisma". Root cause: `backend/lib/generated
+      /prisma/` is the actual Prisma Client code, git-ignored since it's
+      a build artifact (Section 15) — it only exists locally because
+      `prisma generate` had been run by hand at some point, and nothing
+      in `package.json` ever reran it during a deploy. Fixed with a
+      `postinstall` script (`"postinstall": "prisma generate"`), which
+      npm runs automatically right after `npm install` — Render's own
+      build step — regenerating the client from the committed
+      `schema.prisma` on every deploy. Committed as `83b4bff`.
 
 ## Not yet broken down
 
