@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function RecipeView({ recipe, setRecipe, onClose, recipeManagerRef, setRecipes, recipes }) {
+function RecipeView({ recipe, setRecipe, onClose, setRecipes, recipes }) {
   const [isEditing, setIsEditing] = useState(recipe.id === null);
   const [title, setTitle] = useState(recipe.title);
   const [ingredients, setIngredients] = useState(recipe.ingredients);
@@ -80,7 +80,7 @@ function RecipeView({ recipe, setRecipe, onClose, recipeManagerRef, setRecipes, 
 
 
   return (
-    <div className={isEditing ? "recipe-view recipe-view-edit" : "recipe-view recipe-view-read"} ref={recipeManagerRef}>
+    <div className={isEditing ? "recipe-view recipe-view-edit" : "recipe-view recipe-view-read"}>
       <div id="recipe-view-header">
         <input id={"recipe-view-title"} value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" />
         <span>

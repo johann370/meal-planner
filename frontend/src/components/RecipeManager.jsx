@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import RecipeView from './RecipeView.jsx';
 
-function RecipeManager({ recipes, setRecipes, selectedDay, handleAssign, onClose, recipeManagerRef }) {
+function RecipeManager({ isDisplayed, recipes, setRecipes, selectedDay, handleAssign, onClose }) {
   const [viewingRecipe, setViewingRecipe] = useState(null);
   const [importUrl, setImportUrl] = useState('');
 
@@ -26,13 +26,13 @@ function RecipeManager({ recipes, setRecipes, selectedDay, handleAssign, onClose
   }
 
   if (viewingRecipe) {
-    return <RecipeView recipe={viewingRecipe} setRecipe={setViewingRecipe} onClose={() => setViewingRecipe(null)} recipeManagerRef={recipeManagerRef} setRecipes={setRecipes} recipes={recipes} />;
+    return <RecipeView recipe={viewingRecipe} setRecipe={setViewingRecipe} onClose={() => setViewingRecipe(null)} setRecipes={setRecipes} recipes={recipes} />;
   }
 
   return (
-    <div className="recipe-manager" ref={recipeManagerRef}>
+    <div className={isDisplayed ? "recipe-manager" : "recipe-manager hidden-mobile"}>
       <h2>Manage Recipes</h2>
-      <button onClick={onClose}>Close</button>
+      <button className="mobile-close-button" onClick={onClose}>Close</button>
       <ul>
         {recipes.map(recipe => (
           <li key={recipe.id} className="recipe" onClick={() => handleAssign(selectedDay, recipe.id)} style={{ cursor: 'pointer' }}>

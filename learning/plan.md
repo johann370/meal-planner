@@ -1971,8 +1971,82 @@ is set up in Section 1, before any app code, and used throughout.
 
     **Section 22 complete, 2026-09-02.** Both "New Recipe" and Delete are
     live in the panel view; the whole recipe add/edit flow now looks like
-    `RecipeView` in both modes, exactly as scoped. Not yet committed —
-    see git status.
+    `RecipeView` in both modes, exactly as scoped. Committed and pushed as
+    `39fcbdc`.
+
+23. **Mobile responsiveness — one-screen-at-a-time layout.** Scoped
+    2026-09-02, at the student's request: the app works on desktop but
+    isn't responsive, and the student's own instinct going in was that
+    media queries alone wouldn't be enough given how the page is
+    structured — confirmed correct through the design discussion below.
+    **Not started, no implementation work done** — this is the design
+    only, queued to build 2026-09-03.
+
+    Root cause, confirmed by the student resizing their own logged-in
+    browser to phone width (a screenshot attempt on this end only
+    reached the login screen — sharing a session cookie to get past it
+    was correctly declined as unsafe, so the student checked directly
+    instead): `.main-layout` is `flex-direction: row` unconditionally,
+    with each pane (`.week`, `RecipeManager`, `GroceryList`) at `flex:
+    1`. At phone width that's three equal-thirds columns squeezed down to
+    unreadable slivers, not a stack — a plain media query changing sizes
+    wouldn't fix a layout that's fundamentally the wrong shape for a
+    narrow screen.
+
+    Design settled through guided discussion, decisions made by the
+    student:
+    - Not a stacked/scrolling layout — a "one screen at a time" model.
+      Below some breakpoint, exactly one of **Week**, **RecipeManager**,
+      or **GroceryList** shows at a time, full-width, no scrolling needed
+      to see any of them. Desktop is unaffected — all panes keep showing
+      simultaneously regardless of this state, the swap behavior only
+      takes effect inside the media query.
+    - **RecipeManager already swaps out Week** rather than needing new
+      behavior — reusing the existing `selectedDay`-driven conditional
+      render and the already-existing Close button as the way back to
+      Week. Confirmed once asked directly, rather than assumed: the
+      student traced this themselves ("it swaps out since we already
+      have a close button").
+    - **GroceryList becomes a new toggle**, not a permanent third column
+      on mobile — replacing whichever of Week/RecipeManager is currently
+      shown, going back to whichever was active underneath. Correctly
+      reasoned, unprompted, that this needs actual React state and can't
+      be media-query-only, since desktop must always show it regardless
+      of the toggle while mobile must respect it — CSS alone can't
+      express "hidden unless the user asks," only "hidden below this
+      width."
+    - **Close buttons hidden on desktop via a `min-width` media query**,
+      not conditional rendering — correctly reasoned as purely cosmetic
+      (redundant once nothing needs "going back" when everything's
+      always visible), so no JS/handler changes needed, just CSS. Real
+      prerequisite flagged: neither Close button (`RecipeManager.jsx`,
+      `RecipeView.jsx`) currently has a `className` to target — both are
+      bare `<button onClick={...}>Close</button>` — so one needs adding
+      before the media query has anything reliable to select (a
+      positional selector would be fragile).
+
+    ### What this implies would need building (not yet tasks)
+
+    1. A breakpoint decision (what counts as "mobile").
+    2. New state driving which of the three panes is "active" on mobile
+       — likely a `showGroceryList`-style toggle, kept separate from but
+       coordinating with the existing `selectedDay` state.
+    3. A toggle button for Grocery List, visible only below the
+       breakpoint (mirrors the Close-button-hidden-on-desktop idea, just
+       inverted).
+    4. `className`s added to both Close buttons so they're targetable.
+    5. The actual media query work: hiding non-active panes below the
+       breakpoint, full-width layout for whichever is active, Close
+       buttons hidden above it.
+
+    **Also flagged, 2026-09-02, at the student's request — not yet
+    done:** pull the week list out of `App.jsx` into its own component
+    (`Week.jsx` or similar), matching `RecipeManager` and `GroceryList`,
+    which already live separately. `App.jsx` currently owns the week
+    `<ul>` markup directly, inline. Not filed as its own numbered
+    section — most naturally folds into this one, since treating Week as
+    a symmetric "pane" alongside RecipeManager/GroceryList is exactly
+    what the one-screen-at-a-time design above needs.
 
 ## Dev tooling improvements
 

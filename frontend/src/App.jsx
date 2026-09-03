@@ -1,16 +1,41 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import RecipeManager from './components/RecipeManager.jsx'
 import GroceryList from './components/GroceryList.jsx'
 import Login from './components/Login.jsx'
+import Week from './components/Week.jsx'
+import MobileMenu from './components/MobileMenu.jsx'
 
 function App() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [week, setWeek] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [loggedIn, setLoggedIn] = useState(false);
-  const weekRef = useRef(null);
-  const recipeManagerRef = useRef(null);
+  const [displayGroceryList, setDisplayGroceryList] = useState(true);
+  const [displayRecipeManager, setDisplayRecipeManager] = useState(false);
+  const [displayWeek, setDisplayWeek] = useState(false);
+  const mediaQuery = window.matchMedia('(min-width: 768px)');
+
+  function handleMediaQueryChange(e) {
+    if (e.matches) {
+      setDisplayGroceryList(true);
+      setDisplayRecipeManager(true);
+      setDisplayWeek(true);
+    } else {
+      setDisplayGroceryList(false);
+      setDisplayRecipeManager(false);
+      setDisplayWeek(true);
+    }
+
+  }
+
+  useEffect(() => {
+    handleMediaQueryChange(mediaQuery);
+    mediaQuery.addEventListener('change', handleMediaQueryChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleMediaQueryChange);
+    }
+  }, []);
 
   function fetchWeek() {
     fetch(`${import.meta.env.VITE_API_URL}/api/week`, {
@@ -35,21 +60,6 @@ function App() {
     }
   }, [loggedIn])
 
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if ((weekRef.current && weekRef.current.contains(event.target)) || (recipeManagerRef.current && recipeManagerRef.current.contains(event.target))) {
-        return;
-      } else {
-        setSelectedDay(null);
-      }
-    }
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    }
-  }, [])
-
-
   function handleAssign(day, recipeId) {
     fetch(`${import.meta.env.VITE_API_URL}/api/week/${day}`, {
       method: 'PUT',
@@ -71,6 +81,26 @@ function App() {
       .catch(err => console.error(err));
   }
 
+  function onSelectDay(day) {
+    if (selectedDay === day) {
+      setSelectedDay(null);
+    } else {
+      setSelectedDay(day);
+      setDisplayRecipeManager(true);
+      setDisplayWeek(false);
+    }
+  }
+
+  function onCloseRecipeManager() {
+    setSelectedDay(null);
+    setDisplayRecipeManager(false);
+    setDisplayWeek(true);
+  }
+
+  function onCloseGroceryList() {
+    setDisplayGroceryList(false);
+    setDisplayWeek(true);
+  }
 
   if (!loggedIn) {
     return <Login onLogin={() => setLoggedIn(true)} />
@@ -80,19 +110,10 @@ function App() {
     <>
       <h1 id="weekly-meals-title">Weekly Meals</h1>
       <div className="main-layout">
-        <ul className="week" ref={weekRef}>
-          {week.map((day => (<li key={day.day} className={selectedDay === day.day ? "day selected" : "day"} onClick={() => setSelectedDay(day.day)}>
-            <h2>{day.day.slice(0, 3)}</h2>
-            <p>{day.meal ? day.meal : "+ Add Recipe"}</p>
-            {day.meal && <button className="unassign-button" onClick={(e) => {
-              e.stopPropagation();
-              handleAssign(day.day, null);
-            }}>X</button>}
-          </li>)))}
-        </ul>
-        <button id="clear-week" onClick={handleClearWeek}>Clear Week</button>
-        {selectedDay && <RecipeManager recipes={recipes} setRecipes={setRecipes} selectedDay={selectedDay} handleAssign={handleAssign} onClose={() => setSelectedDay(null)} recipeManagerRef={recipeManagerRef} />}
-        <GroceryList week={week} />
+        <MobileMenu setDisplayGroceryList={setDisplayGroceryList} setDisplayRecipeManager={setDisplayRecipeManager} setDisplayWeek={setDisplayWeek} />
+        <Week isDisplayed={displayWeek} week={week} selectedDay={selectedDay} onSelectDay={onSelectDay} handleAssign={handleAssign} handleClearWeek={handleClearWeek} />
+        <RecipeManager isDisplayed={displayRecipeManager} recipes={recipes} setRecipes={setRecipes} selectedDay={selectedDay} handleAssign={handleAssign} onClose={onCloseRecipeManager} />
+        <GroceryList isDisplayed={displayGroceryList} setIsDisplayed={setDisplayGroceryList} week={week} onClose={onCloseGroceryList} />
       </div >
     </>
   )
