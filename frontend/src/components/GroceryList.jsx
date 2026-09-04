@@ -8,7 +8,13 @@ function GroceryList({ isDisplayed, week, onClose }) {
       credentials: 'include'
     })
       .then(response => response.json())
-      .then(data => setGroceryList(data));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setGroceryList(data);
+        } else {
+          console.error('fetchGroceryList failed:', data);
+        }
+      });
   }, [week]);
 
   return (

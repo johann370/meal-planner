@@ -42,7 +42,13 @@ function App() {
       credentials: 'include'
     })
       .then(response => response.json())
-      .then(data => setWeek(data));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setWeek(data);
+        } else {
+          console.error('fetchWeek failed:', data);
+        }
+      });
   }
 
   function fetchRecipes() {
@@ -50,7 +56,13 @@ function App() {
       credentials: 'include'
     })
       .then(response => response.json())
-      .then(data => setRecipes(data));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setRecipes(data);
+        } else {
+          console.error('fetchRecipes failed:', data);
+        }
+      });
   }
 
   useEffect(() => {
