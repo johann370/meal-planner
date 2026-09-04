@@ -2093,11 +2093,37 @@ is set up in Section 1, before any app code, and used throughout.
     selector inside the `768px+` query, deliberately more specific than
     the bare `.hidden-mobile` rule.
 
-    Not yet done: a dedicated end-to-end pass confirming both the
-    full mobile flow (Planner ↔ Recipes ↔ Grocery List, one pane at a
-    time) and the full desktop flow (all panes, no mobile-close buttons
-    visible) together in one sitting, the way Section 22 closed out —
-    today's testing was incremental, per-change.
+    **Section 23 complete, 2026-09-04.** End-to-end pass done, run
+    against local servers started by Claude Code (both `npm run dev`
+    processes launched and smoke-tested directly, not just talked
+    through) — confirmed both the mobile flow (Planner ↔ Recipes ↔
+    Grocery List, one pane at a time) and the desktop flow. Two real
+    bugs turned up and were fixed by the student, solo:
+    - `RecipeManager`'s `viewingRecipe` early-return (`if (viewingRecipe)
+      return <RecipeView .../>`) skipped the `isDisplayed` check
+      entirely, so opening a recipe then switching to Planner or
+      Grocery List on mobile left `RecipeView` stuck on screen instead
+      of swapping out. Fixed by changing the condition to `if
+      (viewingRecipe && isDisplayed)`.
+    - `.recipe-view` overflowed the mobile viewport: `width: 100%` plus
+      `padding: 0.2em` under the default `content-box` sizing means the
+      padding adds on top of the 100% rather than being carved out of
+      it. Fine on desktop where the panel sits alongside others and the
+      overflow is absorbed, but enough to push past the edge when the
+      pane fills the whole narrow screen. Fixed with a global `*box-
+      sizing: border-box` rule in `App.css` (no existing rule set this
+      anywhere) plus shrinking `.recipe-view`'s own padding/width back
+      down. Committed together as `2aa8e6d`.
+
+    Also landed this session, not part of Section 23's original scope
+    but found in the course of testing the live (Render) deploy:
+    cross-site session cookies weren't reaching the browser at all —
+    `SameSite=None` requires `cookie.secure: true` (`8ec1c97`), which in
+    turn requires Express to trust Render's reverse proxy so `req.secure`
+    reads correctly off `X-Forwarded-Proto`; without it express-session
+    silently drops the cookie. Fixed with `app.set('trust proxy', 1)`
+    (`2963163`) — `1` rather than `true`, trusting exactly Render's one
+    hop rather than every hop in the chain.
 
 ## Dev tooling improvements
 
