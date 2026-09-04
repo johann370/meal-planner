@@ -2161,6 +2161,18 @@ requested directly rather than as a plan task, recorded the same way.
 
 ## Not yet broken down
 
+- **express-session's default `MemoryStore` isn't production-safe.**
+  Flagged 2026-09-04: Render logs "connect.session() MemoryStore is not
+  designed for a production environment" on every startup. `session(...)`
+  in `backend/app.js` has no `store` option, so it falls back to the
+  in-process default — leaks memory (sessions never expire/prune
+  themselves) and doesn't survive a restart/redeploy or scale past one
+  process. Not currently causing a live problem (single instance, low
+  traffic), so left as a known, accepted gap rather than fixed
+  immediately. Real fix considered: a persistent shared store, e.g.
+  `connect-pg-simple` (already on Postgres) or Redis. Not yet turned
+  into a task.
+
 - **Unit-name case sensitivity in `/api/grocery-list`'s `GROUP BY`.**
   Flagged 2026-08-28 during task 10.6: `GROUP BY` matches text exactly,
   so "Pound" (Spaghetti's unit) and "pound" (everything else) stayed
