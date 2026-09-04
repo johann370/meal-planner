@@ -1,3 +1,7 @@
+* {
+  box-sizing: border-box;
+}
+
 .main-layout {
   display: flex;
   flex-direction: column;
@@ -103,8 +107,8 @@
 
 .recipe-view {
   border: 1px solid #ccc;
-  max-width: 80%;
-  padding: 1em;
+  width: 100%;
+  padding: 0.2em;
   margin: 0 auto;
 }
 

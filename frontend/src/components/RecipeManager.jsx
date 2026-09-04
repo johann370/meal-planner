@@ -25,7 +25,7 @@ function RecipeManager({ isDisplayed, recipes, setRecipes, selectedDay, handleAs
       .catch(err => console.log(err))
   }
 
-  if (viewingRecipe) {
+  if (viewingRecipe && isDisplayed) {
     return <RecipeView recipe={viewingRecipe} setRecipe={setViewingRecipe} onClose={() => setViewingRecipe(null)} setRecipes={setRecipes} recipes={recipes} />;
   }
 
