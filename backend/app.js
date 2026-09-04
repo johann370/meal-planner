@@ -21,6 +21,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    cookie: process.env.PORT ? { sameSite: 'none', secure: true } : {},
 }));
 app.use('/api', authRoutes());
 app.use(requireAuth);
