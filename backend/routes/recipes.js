@@ -10,17 +10,25 @@ module.exports = (prisma) => {
         const newRecipe = await prisma.recipes.create({
             data: {
                 title,
-                instructions,
+                instructions: { create: instructions.map(instruction => ({ step: instruction.step, instruction: instruction.instruction })) },
                 ingredients: { create: ingredients.map(ingredient => ({ name: normalizeIngredient(ingredient.name), quantity: ingredient.quantity, unit: normalizeUnit(ingredient.unit) })) }
             },
-            include: { ingredients: true }
+            include: { ingredients: true, instructions: true }
         });
         return newRecipe;
     }
 
     router.get('/recipes', async (req, res) => {
         try {
-            const recipes = await prisma.recipes.findMany({ include: { ingredients: true }, orderBy: { id: 'asc' } });
+            const recipes = await prisma.recipes.findMany({
+                include: {
+                    ingredients: true,
+                    instructions: {
+                        orderBy: { step: 'asc' }
+                    }
+                }, orderBy: { id: 'asc' }
+
+            });
             res.json(recipes);
         } catch (err) {
             console.error(err);
@@ -28,34 +36,34 @@ module.exports = (prisma) => {
         }
     });
 
-    router.post('/recipes/import-from-url', async (req, res) => {
-        try {
-            const { url } = req.body;
-            const response = await fetch(url);
-            const html = await response.text();
+    // router.post('/recipes/import-from-url', async (req, res) => {
+    //     try {
+    //         const { url } = req.body;
+    //         const response = await fetch(url);
+    //         const html = await response.text();
 
-            const $ = cheerio.load(html);
-            const jsonLdText = $('script[type="application/ld+json"]').first().html()
-            if (!jsonLdText) {
-                throw new Error('Could not get recipe data');
-            }
-            const jsonLd = JSON.parse(jsonLdText);
-            const recipeData = (jsonLd['@graph'] || []).find(item => item['@type'] === 'Recipe');
-            if (!recipeData) {
-                throw new Error('Could not get recipe data');
-            }
+    //         const $ = cheerio.load(html);
+    //         const jsonLdText = $('script[type="application/ld+json"]').first().html()
+    //         if (!jsonLdText) {
+    //             throw new Error('Could not get recipe data');
+    //         }
+    //         const jsonLd = JSON.parse(jsonLdText);
+    //         const recipeData = (jsonLd['@graph'] || []).find(item => item['@type'] === 'Recipe');
+    //         if (!recipeData) {
+    //             throw new Error('Could not get recipe data');
+    //         }
 
-            const title = recipeData.name;
-            const ingredients = recipeData.recipeIngredient.map(ingredient => parseIngredient(ingredient));
-            const instructions = recipeData.recipeInstructions.map(instruction => instruction.text).join('\n');
-            const newRecipe = await createRecipe({ title, ingredients, instructions });
+    //         const title = recipeData.name;
+    //         const ingredients = recipeData.recipeIngredient.map(ingredient => parseIngredient(ingredient));
+    //         const instructions = recipeData.recipeInstructions.map(instruction => instruction.text).join('\n');
+    //         const newRecipe = await createRecipe({ title, ingredients, instructions });
 
-            res.status(201).json(newRecipe);
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: err.message });
-        }
-    });
+    //         res.status(201).json(newRecipe);
+    //     } catch (err) {
+    //         console.error(err);
+    //         res.status(500).json({ error: err.message });
+    //     }
+    // });
 
     router.post('/recipes', async (req, res) => {
         try {
@@ -76,13 +84,16 @@ module.exports = (prisma) => {
                 where: { id: parseInt(id) },
                 data: {
                     title,
-                    instructions,
+                    instructions: {
+                        deleteMany: {},
+                        create: instructions.map(instruction => ({ step: instruction.step, instruction: instruction.instruction }))
+                    },
                     ingredients: {
                         deleteMany: {},
                         create: ingredients.map(ingredient => ({ name: normalizeIngredient(ingredient.name), unit: normalizeUnit(ingredient.unit), quantity: ingredient.quantity }))
                     }
                 },
-                include: { ingredients: true }
+                include: { ingredients: true, instructions: true }
             });
             res.json(updatedRecipe);
         } catch (err) {
@@ -94,6 +105,7 @@ module.exports = (prisma) => {
     router.delete('/recipes/:id', async (req, res) => {
         try {
             const { id } = req.params;
+            await prisma.instructions.deleteMany({ where: { recipe_id: parseInt(id) } });
             await prisma.ingredients.deleteMany({ where: { recipe_id: parseInt(id) } });
             await prisma.recipes.delete({ where: { id: parseInt(id) } });
             res.status(204).send()

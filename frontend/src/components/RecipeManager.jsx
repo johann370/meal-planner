@@ -38,7 +38,7 @@ function RecipeManager({ isDisplayed, recipes, setRecipes, selectedDay, handleAs
 
       <button onClick={(e) => {
         e.stopPropagation();
-        setViewingRecipe({ id: null, title: '', ingredients: [{ name: '', quantity: '', unit: '' }], instructions: '' })
+        setViewingRecipe({ id: null, title: '', ingredients: [{ name: '', quantity: '', unit: '' }], instructions: [{ step: 1, instruction: "" }] })
       }}>New Recipe</button>
 
       <ul>

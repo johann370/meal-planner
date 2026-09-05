@@ -11,6 +11,11 @@ function RecipeView({ recipe, setRecipe, onClose, setRecipes, recipes }) {
     setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
+  function handleDeleteInstruction(e, index) {
+    e.stopPropagation();
+    setInstructions(instructions.filter((_, i) => i !== index).map((instruction, i) => ({ step: i + 1, instruction: instruction.instruction })));
+  }
+
   function handleSave(event) {
     event.preventDefault();
     const recipeData = { title, ingredients, instructions };
@@ -114,7 +119,24 @@ function RecipeView({ recipe, setRecipe, onClose, setRecipes, recipes }) {
       </div>
       <div>
         <h3>Instructions</h3>
-        <textarea readOnly={!isEditing} className="instructions-input" value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Instructions"></textarea>
+        <ol className="instructions">
+          {instructions.map((instruction, index) => (
+            <li key={index}>
+              <textarea
+                readOnly={!isEditing}
+                value={instruction.instruction}
+                onChange={e => setInstructions(instructions.map((instruction, i) => i === index ? { ...instruction, instruction: e.target.value.replace(/[\r\n]/g, '') } : instruction))}
+                onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}
+                className="instruction"
+                placeholder="Instruction" />
+
+              {isEditing && <button onClick={(e) => handleDeleteInstruction(e, index)}>Delete Instruction</button>}
+            </li>
+          ))}
+          {isEditing && <button onClick={() => setInstructions([...instructions, { step: instructions.length + 1, instruction: "" }])} >Add Instruction</button>}
+        </ol>
+
+        {/* <textarea readOnly={!isEditing} className="instructions-input" value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Instructions"></textarea> */}
       </div>
       {isEditing && <button onClick={handleSave}>Save Recipe</button>}
     </div >
