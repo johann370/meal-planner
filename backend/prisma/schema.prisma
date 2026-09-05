@@ -19,7 +19,7 @@ model ingredients {
 model recipes {
   id           Int           @id @default(autoincrement())
   title        String?
-  instructions String?
+  instructions instructions[]
   ingredients  ingredients[]
   week_meal    week_meal[]
   created_at   DateTime?   @default(now())
@@ -30,4 +30,12 @@ model week_meal {
   day       String?
   recipe_id Int?
   recipes   recipes? @relation(fields: [recipe_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model instructions {
+  id Int @id @default(autoincrement())
+  step Int
+  instruction String
+  recipe_id Int?
+  recipes recipes? @relation(fields: [recipe_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

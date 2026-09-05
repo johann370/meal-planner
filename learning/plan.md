@@ -2125,6 +2125,314 @@ is set up in Section 1, before any app code, and used throughout.
     (`2963163`) — `1` rather than `true`, trusting exactly Render's one
     hop rather than every hop in the chain.
 
+24. **Recipe manager styling pass + title wrap.** Scoped 2026-09-05, at
+    the student's request: a 5-item list going in — (1) a mobile "which
+    day am I assigning?" indicator when Recipe Manager opens via a day
+    tap, absent when opened via the general Recipes menu button; (2)
+    move Close into the header bar; (3) move New Recipe to the top,
+    under the header; (4) restyle the recipe list — clearer separation
+    between rows, reads as clickable; (5) hide Import from URL (not
+    ready yet). Freeform per [[freeform-styling-work]] — no pre-planned
+    task checklist, self-authored end to end and logged after the fact,
+    same shape as Sections 18/20/23; check-ins skipped the usual
+    predict-first pass since it's styling work, per
+    [[no-predictions-for-styling]].
+    *Deliverable: Recipe Manager tells you which day you're assigning
+    to on mobile, Close/New Recipe sit where they're easier to reach,
+    and the recipe list looks and feels clickable.*
+
+    **All 5 items done, 2026-09-05**, self-authored, with two review
+    rounds ("check my code") catching real bugs before commit:
+    - `RecipeManager.jsx`'s header now renders `Assign to {selectedDay}`
+      when `selectedDay` is set, `Manage Recipes` otherwise; Close moved
+      into that same header `<div>`; New Recipe moved above the `<ul>`;
+      the Import-from-URL block commented out rather than deleted.
+    - `.recipe` list items restyled: `list-style: none`, a border
+      between rows (plus a matching top border via `:first-of-type` —
+      answered directly as a factual "how do I" question, not guided,
+      since it's styling), a `:hover` background, and `cursor: pointer`
+      to read as clickable.
+    - **Real bug caught by review, not self-found:** `MobileMenu.jsx`'s
+      "Recipes" button only toggled `displayRecipeManager` — it never
+      cleared `selectedDay`, so selecting a day, then opening Recipe
+      Manager via the general Recipes nav instead of closing first,
+      left the stale "Assign to `<Day>`" header showing — exactly the
+      case item (1) said shouldn't happen. Fixed by threading a new
+      `unselectDay` prop (`() => setSelectedDay(null)` in `App.jsx`)
+      through all three `MobileMenu` handlers (Planner/Recipes/Grocery
+      List), not just Recipes, for consistency.
+    - **Second real bug, same review round:** swapping the list item's
+      `<span>{recipe.title}</span>` for `<p>{recipe.title}</p>` (styling
+      choice, no functional reason) pulled in the browser's default `<p>`
+      margin, which — as a flex child — inflated the row's actual
+      rendered height. Fixed with `.recipe p { margin: 0; }`.
+    - Committed `a4859fc`, pushed as `frontend/recipe-manager-styling`.
+
+    **Extended right after, same session:** a factual "how do I" question
+    (make an overflowing recipe-view title wrap instead of clipping) led
+    to a real finding — `#recipe-view-title` is an `<input>`, and
+    `<input>` elements can never wrap their text via CSS regardless of
+    `white-space`, only clip/scroll. Presented as a real choice rather
+    than assumed: swap to a `<textarea>` (real wrap, needs re-guarding
+    against literal newlines) vs. JS-driven font-shrink-to-fit (stays an
+    `<input>`, more code, no true "fit"). Student picked the textarea
+    swap.
+    - `#recipe-view-title` changed from `<input>` to `<textarea>`, with
+      `field-sizing: content` (grows with typed text, same tool already
+      used on `.instructions-input` since Section 22) + `resize: none`
+      + `max-width: 60%`; `.recipe-view-edit`/`.recipe-view-read`'s
+      selectors extended to cover `#recipe-view-title` alongside
+      `.instructions-input`; the recipe-view header `<div>` switched
+      from `id="recipe-view-header"` to the shared `className="header"`
+      (reusing item (2)'s new class from earlier this session).
+    - Since a `<textarea>` — unlike the old `<input>` — can hold a real
+      manual line break, added an explicit guard once asked to prevent
+      it: `onKeyDown` blocks a typed Enter (`e.preventDefault()`), and
+      `onChange` strips any `\r`/`\n` that arrives via paste — two parts
+      because either alone is incomplete (keydown doesn't catch paste,
+      strip-on-change alone still lets the visible line-break flash in
+      before commit). Implemented by Claude at the student's request
+      after being talked through the gap; confirmed working live.
+    - **Three more real bugs caught by a follow-up "check my code"
+      review**, all self-fixed by the student:
+      1. The old `#recipe-view-header` id rule was now dead (the div no
+         longer carries that id) and its `padding-bottom: 10px` was lost
+         in the swap to `.header` — recovered by adding `padding-bottom`
+         to the shared `.header` class instead, and the dead id rule
+         deleted (confirmed removed via a later grep, once the student
+         said they'd already done it).
+      2. The textarea no longer matched `.recipe-view input`, so it lost
+         `font: inherit`/`color: inherit` — a browser-default textarea
+         font (often monospace) would have clashed visually with the
+         rest of the page. Fixed by adding both directly to
+         `#recipe-view-title`.
+      3. A duplicate `resize: none;` had landed twice in
+         `.instructions-input` — deduped.
+    - Committed `7d6b294` ("recipe title wraps instead of clipping,
+      block manual line breaks"), pushed, then merged
+      `frontend/recipe-manager-styling` into `main` (`d762d12`) and
+      pushed, all at the student's explicit request.
+
+    **Not yet done:** truncating/ellipsis-ing a long title in the list
+    row itself (flagged during review — the list's `.recipe` has a fixed
+    `height: 3.5em`, so a long-enough title would wrap and clip there
+    too) — not asked for, logged in case it comes up.
+
+25. **Recipe instructions as an array of steps.** Scoped 2026-09-05, at
+    the student's request — the "Not yet broken down" gap flagged after
+    Section 22: `line-height` can't tell a manually-typed line break
+    from one forced by wrapping, so "more space between steps, tight
+    spacing within one wrapped step" isn't achievable with a single
+    `<textarea>`/string. Supersedes Section 16's single-text-with-
+    newlines approach. Same shape as `ingredients` (Section 10): its own
+    table, a repeatable list of rows in the UI.
+    *Deliverable: a recipe's instructions display and edit as a real
+    ordered list of separate steps, not one text blob — each step its
+    own element, addable/removable like ingredients already are.*
+
+    Plan worked out entirely by the student, per
+    [[prefers-working-out-problems-first]] — proposed first, then refined
+    through guided questions (not answers) over a few rounds: one real
+    syntax gap self-corrected on a second try (nested `include`+`orderBy`
+    shape — first guess put `orderBy` as a sibling of `instructions`
+    inside `include`, corrected to `include: { instructions: { orderBy:
+    { step: 'asc' } } }` once asked to compare `instructions: true` vs.
+    `instructions: { ... }`), and two real gaps in the initial plan
+    surfaced by questions rather than told outright: no mention of
+    migrating existing recipes' data or dropping the old column, and no
+    mention of the import-from-URL route or the two stale test-fixture
+    payloads (`app.test.js` lines 53 and 76 — the second inside `PUT
+    /api/week/:day`'s test, not a recipes-route test, self-corrected once
+    asked to check exactly where it lives).
+
+    - [x] 25.1 New `instructions` Prisma model — `id`, `step` (Int),
+          `instruction` (String), `recipe_id` FK to `recipes` — same
+          shape as `ingredients`. **Corrected 2026-09-05** (an earlier
+          version of this note wrongly called db-first + `prisma db pull`
+          this project's established workflow): Section 15.6 already
+          baselined the migration history and proved `prisma migrate dev`
+          out for real (`recipes.created_at`) — the model goes straight
+          into `schema.prisma`, then `prisma migrate dev --name
+          add_instructions` generates and applies the real `CREATE TABLE`.
+          Needs applying to both `meal_planner` (via `migrate dev`) and
+          `meal_planner_test` (via `migrate deploy`, same as 15.6 had to
+          do after tests broke against the dev-only migration).
+          **Completed 2026-09-05.** Model shape self-authored correctly
+          first try, but the back-reference on `recipes` initially hit
+          the exact same collision as Section 15.1's `ingredients`: a
+          first draft replaced the old `instructions String?` column
+          with a same-named relation field, which would have made
+          `migrate dev` drop the real, not-yet-migrated column to match
+          the schema. Caught before running anything — correctly
+          reasoned, unprompted, "it would delete the instructions column
+          and create a new one" once asked to trace what `migrate dev`
+          actually diffs against. Fixed by leaving the old scalar column
+          untouched and naming the new relation field `instructions_temp`
+          instead, deferring the real rename to 25.8; correctly reasoned
+          unprompted why that deferred rename needs no migration at all —
+          a relation field isn't a physical column, the FK lives on
+          `instructions.recipe_id`, not on `recipes`. Ran `npx prisma
+          migrate dev --name add_instructions` (needed `npx` — `prisma`
+          isn't installed globally, only as a local devDependency);
+          confirmed purely additive by reading the generated SQL
+          (`CREATE TABLE "instructions"` + one FK, nothing touching
+          `recipes`). Applied the same migration to `meal_planner_test`
+          via `migrate deploy`, pointed at it by loading `.env.test`'s
+          `DATABASE_URL` first — same mechanic as Section 15.6's dev/test
+          migration gap, this time anticipated rather than hit cold.
+    - [x] 25.2 `createRecipe` (`routes/recipes.js`): add `instructions: {
+          create: instructions.map(...) }` to the `data` object and
+          `instructions: true` to `include`, mirroring `ingredients`
+          exactly.
+          **Completed 2026-09-05.** Self-authored correct on the first
+          try (as `instructions_temp`, per 25.1's deferred rename).
+          Confirmed not testable through the real UI yet — `RecipeManager`
+          still sends `instructions` as a plain string until 25.6 — so
+          flagged for a `curl`-based confirmation instead, matching
+          Section 10.3's precedent for backend-before-frontend work.
+    - [x] 25.3 `GET /api/recipes`: add `instructions: { orderBy: { step:
+          'asc' } }` to the existing `include`.
+          **Completed 2026-09-05.** One real, self-corrected mistake:
+          first attempt moved the recipe-level `orderBy: { id: 'asc' }`
+          *inside* `include`, as a sibling of `ingredients`/
+          `instructions_temp` — as if `orderBy` were itself a relation to
+          include. Self-fixed once asked to compare it against
+          `instructions_temp: { orderBy: { step: 'asc' } }` sitting right
+          next to it, correctly reasoning the two `orderBy`s need
+          different homes (one scoped inside a specific relation's own
+          config, the other a sibling of `include` at the `findMany()`
+          level). Also correctly predicted the nested shape itself,
+          unprompted, when quizzed on it in the abstract before any code
+          existed: `include: { instructions: { orderBy: { step: 'asc'
+          } } }`, right on the first real guess (after one earlier wrong
+          guess putting `orderBy` as a sibling of `instructions` instead).
+    - [x] 25.4 `PUT /api/recipes/:id`: same delete-then-recreate pattern
+          already used for `ingredients` (`deleteMany: {}` + `create:
+          instructions.map(...)`).
+          **Completed 2026-09-05.** Self-authored correct on the first
+          try — `step` and `instruction` both carried through the
+          delete-then-recreate shape, `instructions_temp: true` added to
+          `include`.
+    - [x] 25.5 `DELETE /api/recipes/:id`: delete all `instructions` rows
+          for the recipe (mirroring the existing `ingredients.deleteMany`
+          call) before deleting the recipe itself.
+          **Completed 2026-09-05.** One real, self-corrected mistake:
+          first attempt wrote `prisma.instructions_temp.deleteMany(...)`
+          — confusing the relation *field* name (only meaningful inside
+          nested writes/includes on `recipes`) with the Prisma Client
+          model accessor, which is always the model's own name
+          (`instructions`) regardless of what any relation field
+          elsewhere is called. Self-corrected once asked to compare
+          against the working `prisma.ingredients.deleteMany(...)` line
+          right below it.
+    - [ ] 25.6 Frontend (`RecipeView.jsx`): map over `instructions` the
+          same way `ingredients` is mapped — one `<textarea>` per step,
+          add/remove a step the same way Add/Delete Ingredient already
+          work. `step` derived from the array index + 1 at save time, not
+          tracked as separate per-item state.
+          **Deliberately reordered after 25.7/25.8, 2026-09-05** — the
+          student's own call, correctly reasoning there wasn't going to
+          be much real (migrated) data to look at until the migration
+          ran first.
+    - [x] 25.7 Data migration: a one-off script (`scripts/
+          convertInstructions.js`), run manually once (`node scripts/
+          convertInstructions.js` — no automatic "runs once" mechanism,
+          just self-discipline not to run it twice), looping every
+          existing recipe, splitting its old `instructions` string on
+          `\n`, and `createMany`-inserting the resulting rows into the
+          new table. Confirm every recipe's steps look right (a
+          `findMany`/`SELECT` check) before touching the old column.
+          **Completed 2026-09-05.** Several real, self-corrected bugs in
+          order: (1) `require('./lib/prisma.js')` instead of `../lib/
+          prisma.js` (the script lives in `scripts/`, not next to `lib/`);
+          (2) the outer `.map()`/`.flatMap()` callback used a block body
+          with no `return`, silently producing an array of `undefined`s —
+          self-diagnosed once asked to trace what the callback actually
+          hands back, and correctly connected needing `.flatMap()`
+          specifically (not `.map()`) to Section 15.3's grocery-list
+          `.flatMap()` precedent, unprompted, once asked whether a
+          "map and flatten in one step" tool already existed in the
+          project; (3) `prisma.instructions_temp.createMany(...)` — the
+          same model-name-vs-field-name mistake just fixed in 25.5,
+          self-recognized once pointed at that precedent directly; (4)
+          the function was fully written but never actually called —
+          added the `convertInstructions()` invocation once asked what
+          running the file as-is would do. Deliberately skipped a
+          null-`instructions` guard, correctly reasoning no recipe
+          currently has one. Added a `console.log(data.length)` sanity
+          check before the write, on request.
+
+          Run against `meal_planner` first: 36 rows, confirmed correct
+          via a live `curl` of `GET /api/recipes` (spot-checked a
+          13-step real recipe, Chicken Broccoli Casserole — sequential,
+          matching the original `\n`-joined text exactly). A real gap
+          surfaced right after: the script only ever loaded plain `.env`
+          (dev), and a direct `psql` check of `meal_planner_test` found 5
+          real seeded recipes with un-migrated `instructions` text still
+          sitting there — an initial "nothing is sitting in that database
+          right now" claim that turned out wrong on inspection, not taken
+          on faith. Re-ran the same script against `meal_planner_test` by
+          loading `.env.test` first (same mechanic as the migration
+          commands); confirmed via `psql`, all 5 rows landed correctly.
+    - [x] 25.8 Drop the old `recipes.instructions` column, matching
+          Section 15's `ingredients`-column-drop precedent — only once
+          25.7's migration is confirmed correct.
+          **Completed 2026-09-05.** Schema changed to drop the old
+          `instructions String?` field and rename `instructions_temp` →
+          `instructions` in the same pass, now that the real data lives
+          safely in the new table. `npx prisma migrate dev` generated a
+          clean single-statement `ALTER TABLE "recipes" DROP COLUMN
+          "instructions"` (confirmed by reading the migration SQL) — the
+          rename itself needed no SQL at all, exactly as predicted back
+          in 25.1, since it's a virtual relation field. Applied to
+          `meal_planner_test` via `migrate deploy` the same way as
+          before. One necessary follow-up surfaced and fixed: `routes/
+          recipes.js` still referenced the now-dead `instructions_temp`
+          name in five places — the student named the correct fix
+          ("change all instances of instructions_temp to instructions")
+          but had Claude make the mechanical rename directly, reasoning
+          it was "just a variable change," not new logic to practice.
+          Confirmed via a live `curl` (renamed field appears correctly)
+          and a direct `psql \d recipes` check against
+          `meal_planner_test` (old column gone, both new FKs present).
+    - [x] 25.9 `POST /api/recipes/import-from-url`: leave disabled rather
+          than converting it to the new array shape — the student's
+          call, since the feature isn't considered ready yet regardless
+          of this change (its frontend UI is already hidden, Section 24
+          item 5).
+          **Completed 2026-09-05.** Commented out entirely, matching the
+          frontend's own already-hidden Import from URL button. Correctly
+          noted, unprompted, that there was never a test written for this
+          route in the first place, so no test-suite cleanup needed here.
+          `cheerio`/`parseIngredient` imports deliberately left in place,
+          in case the route comes back later.
+    - [x] 25.10 Update the two stale `instructions: '...'` string test
+          fixtures in `app.test.js` (line 53's `POST /api/recipes` test,
+          and line 76's temporary-recipe fixture inside `PUT
+          /api/week/:day`'s test) to the new array-of-steps shape;
+          confirm `meal_planner_test` has the new table from 25.1.
+          **Completed 2026-09-05.** Confirmed the exact expected failure
+          first: `npm test` showed 2 of 8 failing (the two tests using
+          these fixtures — the second only because it depends on the
+          first recipe-creation call succeeding). Fixed both to
+          `instructions: [{ step: 1, instruction: '...' }]` — self-
+          corrected the array-of-objects shape once asked to compare it
+          against invalid `[step: '1', ...]` syntax, and self-corrected
+          `step`'s type from a string `'1'` to a real `1`, reasoning from
+          the same `parseInt`-for-Prisma pattern already known from
+          earlier route work. Edits applied by Claude at direct request
+          ("just a variable/fixture change"). Confirmed passing by the
+          student running the suite directly, after Claude's own
+          background test run hung on an unrelated environment issue —
+          multiple outbound HTTPS connections open with zero DB activity,
+          consistent with [[dotenv-self-promo-log-line]]'s known `dotenv`
+          v17 network call blocking synchronously in this sandbox
+          specifically (not reproduced on the student's own machine).
+    - [ ] 25.11 Confirm the deliverable end-to-end: existing recipes'
+          steps display correctly after migration, editing/adding/
+          removing a step works and persists, all tests pass; commit and
+          push.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -2173,13 +2481,6 @@ requested directly rather than as a plan task, recorded the same way.
   `connect-pg-simple` (already on Postgres) or Redis. Not yet turned
   into a task.
 
-- **Unit-name case sensitivity in `/api/grocery-list`'s `GROUP BY`.**
-  Flagged 2026-08-28 during task 10.6: `GROUP BY` matches text exactly,
-  so "Pound" (Spaghetti's unit) and "pound" (everything else) stayed
-  separate rows instead of combining — a real data-quality gap, not a
-  query bug. Not in task 10.6's scope (case-insensitive matching was
-  never asked for) and not yet turned into a task.
-
 - **Tests shouldn't have to manually restore database state.** Flagged
   2026-09-01 by the student, while writing a test for `DELETE
   /api/week/meals`: every mutation test in `app.test.js` currently notes
@@ -2215,6 +2516,18 @@ requested directly rather than as a plan task, recorded the same way.
   fields noted in section 21's data map. Not yet turned into a task.
 
 ## Known issues (fixed)
+
+- **Unit-name case sensitivity in `/api/grocery-list`'s combining logic.**
+  Flagged 2026-08-28 during task 10.6 (originally described against the
+  old raw-SQL `GROUP BY`, before Section 15 moved combining into JS):
+  differently-cased names/units ("Pound" vs "pound") or different words
+  for the same unit ("lb" vs "pound") stayed separate list entries
+  instead of combining — a real data-quality gap, not a query bug. Fixed
+  by Section 17 (completed 2026-08-31): `lib/normalize.js`'s
+  `normalizeUnit`/`normalizeIngredient` (lowercasing + a unit-synonym
+  table) now run on both write (`recipes.js`) and combine (`groceryList.js`),
+  so this note in "Not yet broken down" was stale and removed rather than
+  actually still open — caught 2026-09-05 while listing pending plan work.
 
 - **Task 10.5's edit-load half was already fixed by 10.4, not broken.**
   `plan.md` originally flagged `handleEditClick`'s

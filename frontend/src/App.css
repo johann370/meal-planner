@@ -192,8 +192,11 @@
   margin-bottom: 5px;
 }
 
+.instructions li::marker {
+  font-weight: bold;
+}
 
-.instructions-input {
+.instruction {
   width: 95%;
   field-sizing: content;
   resize: none;
@@ -201,16 +204,17 @@
   color: inherit;
   line-height: 1.5;
   border: 1px solid transparent;
-  padding: 2px;
+  vertical-align: top;
+  padding: 0;
 }
 
-.recipe-view-edit .instructions-input,
+.recipe-view-edit .instruction,
 .recipe-view-edit #recipe-view-title {
-  border-color: #ccc;
+  border-color: #9f9e9e;
   background: white;
 }
 
-.recipe-view-read .instructions-input,
+.recipe-view-read .instruction,
 .recipe-view-read #recipe-view-title {
   outline: none;
   caret-color: transparent;
