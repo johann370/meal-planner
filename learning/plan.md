@@ -2325,7 +2325,7 @@ is set up in Section 1, before any app code, and used throughout.
           elsewhere is called. Self-corrected once asked to compare
           against the working `prisma.ingredients.deleteMany(...)` line
           right below it.
-    - [ ] 25.6 Frontend (`RecipeView.jsx`): map over `instructions` the
+    - [x] 25.6 Frontend (`RecipeView.jsx`): map over `instructions` the
           same way `ingredients` is mapped — one `<textarea>` per step,
           add/remove a step the same way Add/Delete Ingredient already
           work. `step` derived from the array index + 1 at save time, not
@@ -2334,6 +2334,54 @@ is set up in Section 1, before any app code, and used throughout.
           student's own call, correctly reasoning there wasn't going to
           be much real (migrated) data to look at until the migration
           ran first.
+          **Completed 2026-09-05.** Design deviated slightly from the
+          plan, for the better: rather than deferring `step` to a single
+          recompute at save time, `step` is kept correct on every
+          add/delete as it happens (`instructions.length + 1` on add,
+          re-indexing the survivors on delete) — simpler, and the state
+          is never momentarily inconsistent. Several real, self-corrected
+          bugs on the way: (1) the textarea was built from a legacy
+          React pattern — setting children (`{instruction.instruction}`)
+          instead of a real `value`/`onChange` pair, so nothing typed
+          would ever reach state; self-fixed once asked to compare
+          against how the ingredient inputs are built. (2) missing
+          `readOnly={!isEditing}`, letting the text be edited outside
+          edit mode — added. (3) a real CSS bug caught mid-fix, not a
+          style choice: the read-mode selector was renamed to the
+          plural `.instructions` while the actual class on the element
+          is singular `.instruction`, silently breaking read-mode
+          styling — self-corrected once asked to check the actual
+          class name in the JSX. (4) `handleDeleteInstruction`'s
+          re-indexing `.map()` nested the *entire* `{step, instruction}`
+          object into the new object's `instruction` field instead of
+          just the text string (`instruction: instruction` instead of
+          `instruction: instruction.instruction`) — self-diagnosed
+          correctly ("the whole object") once asked to trace what the
+          shadowed `instruction` parameter actually referred to, then
+          self-fixed. (5) a claimed fix that hadn't actually landed —
+          the stale textarea children from bug (1) were still present
+          on a later "done," caught by a follow-up diff check rather
+          than taken on faith. (6) a stray `placeholder="Instruction"`
+          landed on the *button* instead of the textarea during one
+          edit pass — self-corrected onto the right element.
+
+          Same Enter-key/paste-newline guard as the title (Section 24)
+          added on request, correctly merged into the per-row `onChange`
+          without disturbing its existing index-matching update logic.
+          Separate styling side-quest, resolved via direct "how do I"
+          answers (not guided, per [[no-predictions-for-styling]]): list
+          markers not vertically matching the textarea's top (a
+          `<textarea>`'s default `vertical-align: baseline` throwing off
+          marker alignment) — landed on `vertical-align: text-top` plus a
+          small manual `margin-top` nudge, "still slightly too high" but
+          accepted as good enough for now rather than chased further.
+          Explored, but didn't adopt, two fuller-control alternatives
+          along the way: `::marker` styling (real, but limited to
+          color/font properties, no box-model control) and a CSS-counter
+          `::before` marker (full control, more moving parts); also
+          floated rendering the real `instruction.step` value as its own
+          element instead of relying on any browser-generated marker at
+          all — a live option for later, not implemented this session.
     - [x] 25.7 Data migration: a one-off script (`scripts/
           convertInstructions.js`), run manually once (`node scripts/
           convertInstructions.js` — no automatic "runs once" mechanism,
@@ -2428,10 +2476,20 @@ is set up in Section 1, before any app code, and used throughout.
           consistent with [[dotenv-self-promo-log-line]]'s known `dotenv`
           v17 network call blocking synchronously in this sandbox
           specifically (not reproduced on the student's own machine).
-    - [ ] 25.11 Confirm the deliverable end-to-end: existing recipes'
+    - [x] 25.11 Confirm the deliverable end-to-end: existing recipes'
           steps display correctly after migration, editing/adding/
           removing a step works and persists, all tests pass; commit and
           push.
+          **Completed 2026-09-05.** Full suite re-run clean: 8/8 passing
+          (up from 6, reflecting Section 20's unassign/clear-week tests
+          added since the plan's older "6/6" notes) — Claude's own
+          earlier background test run had hung on an unrelated
+          environment issue, not reproduced when the student ran it
+          directly or in Claude's own later foreground re-run. Manual
+          click-through of add/edit/delete-step done directly by the
+          student. Branched off `main` first (`backend/recipe-
+          instructions-array`, this project's default-branch convention),
+          committed as `5f59bab`, pushed.
 
 ## Dev tooling improvements
 
