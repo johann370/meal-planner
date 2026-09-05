@@ -81,8 +81,14 @@ function RecipeView({ recipe, setRecipe, onClose, setRecipes, recipes }) {
 
   return (
     <div className={isEditing ? "recipe-view recipe-view-edit" : "recipe-view recipe-view-read"}>
-      <div id="recipe-view-header">
-        <input id={"recipe-view-title"} value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" />
+      <div className="header">
+        <textarea
+          id={"recipe-view-title"}
+          value={title}
+          onChange={e => setTitle(e.target.value.replace(/[\r\n]/g, ''))}
+          onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}
+          placeholder="Title"
+        />
         <span>
           {isEditing ? <button onClick={handleCancelEdit}>Cancel</button> : <button onClick={() => setIsEditing(true)}>Edit</button>}
           {isEditing && recipe.id && <button onClick={handleDelete}>Delete</button>}
