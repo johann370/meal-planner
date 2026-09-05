@@ -12,13 +12,16 @@ afterAll(async () => {
   await app.prisma.$disconnect();
 })
 
-// Runs fresh before every test below that uses `agent` — a pre-logged-in
-// session, ready to go, without each test having to log in itself.
 let agent;
 
 beforeEach(async () => {
   agent = request.agent(app);
   await agent.post('/api/login').send({ password: TEST_PASSWORD });
+
+  await app.prisma.week_meal.updateMany({ data: { recipe_id: null } });
+  await app.prisma.ingredients.deleteMany();
+  await app.prisma.instructions.deleteMany();
+  await app.prisma.recipes.deleteMany();
 })
 
 test('GET /api/week without logging in returns 401', async () => {
@@ -60,19 +63,9 @@ test('POST /api/recipes actually creates a recipe', async () => {
   const listResponse = await agent.get('/api/recipes');
   const created = listResponse.body.find(recipe => recipe.id === createResponse.body.id);
   expect(created).toBeDefined();
-
-  await agent.delete(`/api/recipes/${createResponse.body.id}`);
 });
 
 test('PUT /api/week/:day actually assigns a recipe to a day', async () => {
-  // Capture Monday's current assignment so we can restore it afterward —
-  // there's no "delete a day," only ever a different recipe assigned to it.
-  const beforeWeek = await agent.get('/api/week');
-  const mondayBefore = beforeWeek.body.find(d => d.day === 'Monday');
-  const recipes = await agent.get('/api/recipes');
-  const originalRecipe = recipes.body.find(r => r.title === mondayBefore.meal);
-
-  // Create a temporary recipe to assign to Monday.
   const newRecipe = { title: 'Test Assignment Recipe', ingredients: [{ name: 'x', quantity: 1, unit: 'x' }], instructions: [{ step: 1, instruction: 'x' }] };
   const createResponse = await agent.post('/api/recipes').send(newRecipe);
 
@@ -82,20 +75,13 @@ test('PUT /api/week/:day actually assigns a recipe to a day', async () => {
   const afterWeek = await agent.get('/api/week');
   const mondayAfter = afterWeek.body.find(d => d.day === 'Monday');
   expect(mondayAfter.meal).toBe(newRecipe.title);
-
-  // Restore Monday's original assignment, then delete the temporary recipe.
-  await agent.put('/api/week/Monday').send({ recipeId: originalRecipe.id });
-  await agent.delete(`/api/recipes/${createResponse.body.id}`);
 });
 
 test('PUT /api/week/:day with null recipeId unassigns a recipe from a day', async () => {
-  // Capture Tuesday's current assignment so we can restore it afterward.
-  const beforeWeek = await agent.get('/api/week');
-  const tuesdayBefore = beforeWeek.body.find(d => d.day === 'Tuesday');
-  const recipes = await agent.get('/api/recipes');
-  const originalRecipe = recipes.body.find(r => r.title === tuesdayBefore.meal);
+  const newRecipe = { title: 'Test Assignment Recipe', ingredients: [{ name: 'x', quantity: 1, unit: 'x' }], instructions: [{ step: 1, instruction: 'x' }] };
+  const createResponse = await agent.post('/api/recipes').send(newRecipe);
+  await agent.put('/api/week/Tuesday').send({ recipeId: createResponse.body.id });
 
-  // Unassign Tuesday's recipe.
   const putResponse = await agent.put('/api/week/Tuesday').send({ recipeId: null });
   expect(putResponse.status).toBe(200);
 
@@ -103,16 +89,15 @@ test('PUT /api/week/:day with null recipeId unassigns a recipe from a day', asyn
   const tuesdayAfter = afterWeek.body.find(d => d.day === 'Tuesday');
   expect(tuesdayAfter.meal).toBeNull();
 
-  // Restore Tuesday's original assignment.
-  await agent.put('/api/week/Tuesday').send({ recipeId: originalRecipe.id });
 });
 
 test('DELETE /api/week/meals clears all meals for the week', async () => {
-  // Capture the current assignments so we can restore them afterward.
-  const beforeWeek = await agent.get('/api/week');
-  const originalAssignments = beforeWeek.body.map(d => ({ day: d.day, meal: d.meal }));
+  const newRecipe = { title: 'Test Assignment Recipe', ingredients: [{ name: 'x', quantity: 1, unit: 'x' }], instructions: [{ step: 1, instruction: 'x' }] };
+  const createResponse = await agent.post('/api/recipes').send(newRecipe);
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const assignDays = days.map(day => agent.put(`/api/week/${day}`).send({ recipeId: createResponse.body.id }));
+  await Promise.all(assignDays);
 
-  // Clear all meals for the week.
   const deleteResponse = await agent.delete('/api/week/meals');
   expect(deleteResponse.status).toBe(204);
 
@@ -120,11 +105,4 @@ test('DELETE /api/week/meals clears all meals for the week', async () => {
   afterWeek.body.forEach(d => {
     expect(d.meal).toBeNull();
   });
-
-  // Restore the original assignments.
-  const recipes = await agent.get('/api/recipes');
-  for (const assignment of originalAssignments) {
-    const recipe = recipes.body.find(r => r.title === assignment.meal);
-    await agent.put(`/api/week/${assignment.day}`).send({ recipeId: recipe ? recipe.id : null });
-  }
 });

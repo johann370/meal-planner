@@ -2433,6 +2433,60 @@ is set up in Section 1, before any app code, and used throughout.
           removing a step works and persists, all tests pass; commit and
           push.
 
+26. **Tests reset the database automatically instead of restoring it by
+    hand.** Chosen 2026-09-05, at the student's request, from the "Not
+    yet broken down" backlog (originally flagged 2026-09-01) — closing
+    out one of the two obstacles logged in `obstacles.md` the same
+    session.
+    *Deliverable: every test starts from a genuinely known, blank state
+    automatically, with no test responsible for capturing/restoring
+    "whatever was already there" by hand.*
+
+    Plan worked out by the student, refined through guided questions
+    (not answers), per [[prefers-working-out-problems-first]]:
+    - Initial idea: wipe all data before every test. Two real gaps
+      surfaced by questions rather than told outright: (1) `week_meal`
+      isn't data to delete the same way `recipes` is — it's always
+      exactly 7 day rows, which `GET /api/week` depends on existing;
+      correctly landed on nulling `recipe_id` on all 7 rather than
+      deleting them. (2) the FK relations are all `onDelete: NoAction`,
+      so `recipes` can't be deleted while any `week_meal` row still
+      references one — correctly reasoned the deletion order needs
+      `week_meal` (nulled) → `ingredients`/`instructions` → `recipes`.
+    - Correctly recognized, once asked, that resetting to blank breaks
+      the two tests that assumed *ambient* pre-existing assignments
+      (`unassigns a recipe`, `clears all meals`) — their own stated fix:
+      "assign data during those tests" instead of reading/relying on
+      whatever the shared app state happened to hold.
+
+    **Completed 2026-09-05.** `beforeEach` (`app.test.js`) extended with
+    the reset, in the correct dependency order, self-authored correct on
+    the first try: `week_meal.updateMany({data: {recipe_id: null}})` →
+    `ingredients.deleteMany()` → `instructions.deleteMany()` →
+    `recipes.deleteMany()`, using `app.prisma` (already exposed on the
+    exported `app` for `afterAll`'s `$disconnect()`). Confirmed the
+    predicted breakage for real by actually running the suite first,
+    rather than assuming: `assigns a recipe to a day` and `with null
+    recipeId unassigns a recipe` both failed exactly as expected, on
+    `originalRecipe` being `undefined` once there was nothing ambient
+    left to look up (`clears all meals` happened to survive uncaught,
+    thanks to its own pre-existing `recipe ? recipe.id : null` guard —
+    weaker coverage, not a crash).
+
+    Fixes, all self-authored: removed the now-dead capture/restore code
+    from `creates a recipe`, `assigns a recipe`, and `unassigns a
+    recipe` (redundant now that `beforeEach` handles cleanup
+    automatically regardless of what a test does); `unassigns a recipe`
+    rewritten to create-and-assign a recipe to Tuesday first, so
+    unassigning it afterward is a real, meaningful transition instead of
+    null-to-null. Self-initiated, unprompted, past what was actually
+    asked about: applied the exact same fix to `clears all meals` too —
+    create one recipe, assign it to all seven days via
+    `Promise.all(days.map(day => agent.put(...)))`, *then* clear and
+    assert every day is null — recognizing the same "asserting a no-op"
+    weakness applied there too, once it had been named for the other
+    test. Confirmed via `npm test`: 8/8 passing.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -2481,41 +2535,24 @@ requested directly rather than as a plan task, recorded the same way.
   `connect-pg-simple` (already on Postgres) or Redis. Not yet turned
   into a task.
 
+## Known issues (fixed)
+
 - **Tests shouldn't have to manually restore database state.** Flagged
-  2026-09-01 by the student, while writing a test for `DELETE
-  /api/week/meals`: every mutation test in `app.test.js` currently notes
-  the real data beforehand and restores it by hand afterward (`PUT
-  /api/week/:day`'s existing test, and the new unassign test, both do
-  this for one day; the new clear-week test needs it for all seven at
-  once). The real gap: tests should start from known-good data
-  automatically (e.g. a proper seed/reset step), not rely on each test's
-  own before/after bookkeeping to avoid corrupting real dev-adjacent
-  test data if a test fails partway through. Not yet turned into a task.
+  2026-09-01: every mutation test in `app.test.js` noted the real data
+  beforehand and restored it by hand afterward, instead of starting from
+  a known-good state that reset itself automatically. Fixed by
+  Section 26 (completed 2026-09-05): a `beforeEach` reset (wiping
+  `week_meal`/`ingredients`/`instructions`/`recipes` in the correct
+  order) replaced all the manual capture-and-restore code.
 
 - **Instructions as separate steps, not one text blob.** Flagged
-  2026-09-02 by the student, while redesigning the recipe view/edit
-  panel: pressing Enter between instructions and having the text wrap
-  (long line, narrow textarea) both produce a line break, but CSS
-  `line-height` can't tell those two cases apart — a manual line break
-  and a wrap-forced one get identical spacing, so "more space between
-  instructions, tight spacing within one wrapped instruction" isn't
-  achievable with a single `<textarea>`/string. The fix considered:
-  store instructions as an array of steps, same shape as `ingredients`
-  (its own table or JSON column instead of one text field), rendered as
-  rows with the same add/remove pattern already built for ingredients —
-  sidesteps the line-height limitation entirely since each step is its
-  own element. Real scope: a schema/migration change (supersedes
-  Section 16's single-text-with-newlines approach), existing recipes'
-  instructions would need splitting on `\n` to migrate, and the create
-  /update routes plus import-from-URL parsing would all need to speak
-  "array of steps" instead of one string. Notable in its favor: schema
-  .org's `recipeInstructions` (already parsed on import) is commonly an
-  array of `HowToStep` objects to begin with, so today's import is
-  likely flattening already-structured data into one string — same
-  "already fetched, discarded" situation as the cook-time/tags/rating
-  fields noted in section 21's data map. Not yet turned into a task.
-
-## Known issues (fixed)
+  2026-09-02: `line-height` can't distinguish a manually-typed line
+  break from a wrap-forced one, so instructions stored as a single
+  `<textarea>`/string could never get "more space between steps, tight
+  spacing within one wrapped step." Fixed by Section 25 (completed
+  2026-09-05): instructions moved into their own table, same shape as
+  `ingredients`, sidestepping the `line-height` limitation entirely
+  since each step is now its own element.
 
 - **Unit-name case sensitivity in `/api/grocery-list`'s combining logic.**
   Flagged 2026-08-28 during task 10.6 (originally described against the
