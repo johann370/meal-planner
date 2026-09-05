@@ -19,6 +19,7 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #232323;
+  padding-bottom: 10px;
 }
 
 #weekly-meals-title {
@@ -152,16 +153,19 @@
   margin: 0 auto;
 }
 
-#recipe-view-header {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid #232323;
-  padding-bottom: 10px;
+.recipe-view h3 {
+  font-size: 1.4em;
 }
 
 #recipe-view-title {
+  font: inherit;
+  color: inherit;
   font-size: 1.5em;
   font-weight: bold;
+  max-width: 60%;
+  field-sizing: content;
+  border: 1px solid transparent;
+  resize: none;
 }
 
 .recipe-view input {
@@ -190,7 +194,7 @@
 
 
 .instructions-input {
-  width: 80%;
+  width: 95%;
   field-sizing: content;
   resize: none;
   font: inherit;
@@ -200,12 +204,14 @@
   padding: 2px;
 }
 
-.recipe-view-edit .instructions-input {
+.recipe-view-edit .instructions-input,
+.recipe-view-edit #recipe-view-title {
   border-color: #ccc;
   background: white;
 }
 
-.recipe-view-read .instructions-input {
+.recipe-view-read .instructions-input,
+.recipe-view-read #recipe-view-title {
   outline: none;
   caret-color: transparent;
   cursor: default;
