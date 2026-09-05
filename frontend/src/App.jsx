@@ -122,7 +122,7 @@ function App() {
     <>
       <h1 id="weekly-meals-title">Weekly Meals</h1>
       <div className="main-layout">
-        <MobileMenu setDisplayGroceryList={setDisplayGroceryList} setDisplayRecipeManager={setDisplayRecipeManager} setDisplayWeek={setDisplayWeek} />
+        <MobileMenu setDisplayGroceryList={setDisplayGroceryList} setDisplayRecipeManager={setDisplayRecipeManager} setDisplayWeek={setDisplayWeek} unselectDay={() => setSelectedDay(null)} />
         <Week isDisplayed={displayWeek} week={week} selectedDay={selectedDay} onSelectDay={onSelectDay} handleAssign={handleAssign} handleClearWeek={handleClearWeek} />
         <RecipeManager isDisplayed={displayRecipeManager} recipes={recipes} setRecipes={setRecipes} selectedDay={selectedDay} handleAssign={handleAssign} onClose={onCloseRecipeManager} />
         <GroceryList isDisplayed={displayGroceryList} setIsDisplayed={setDisplayGroceryList} week={week} onClose={onCloseGroceryList} />

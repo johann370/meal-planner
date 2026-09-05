@@ -1,20 +1,23 @@
-function MobileMenu({ setDisplayGroceryList, setDisplayRecipeManager, setDisplayWeek }) {
+function MobileMenu({ setDisplayGroceryList, setDisplayRecipeManager, setDisplayWeek, unselectDay }) {
     function openPlanner() {
         setDisplayWeek(true);
         setDisplayRecipeManager(false);
         setDisplayGroceryList(false);
+        unselectDay();
     }
 
     function openRecipes() {
         setDisplayWeek(false);
         setDisplayRecipeManager(true);
         setDisplayGroceryList(false);
+        unselectDay();
     }
 
     function openGrocery() {
         setDisplayWeek(false);
         setDisplayRecipeManager(false);
         setDisplayGroceryList(true);
+        unselectDay();
     }
 
     return (

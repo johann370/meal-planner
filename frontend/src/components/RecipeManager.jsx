@@ -31,12 +31,20 @@ function RecipeManager({ isDisplayed, recipes, setRecipes, selectedDay, handleAs
 
   return (
     <div className={isDisplayed ? "recipe-manager" : "recipe-manager hidden-mobile"}>
-      <h2>Manage Recipes</h2>
-      <button className="mobile-close-button" onClick={onClose}>Close</button>
+      <div className="header">
+        {selectedDay ? <h2>Assign to {selectedDay}</h2> : <h2>Manage Recipes</h2>}
+        <button className="mobile-close-button" onClick={onClose}>Close</button>
+      </div>
+
+      <button onClick={(e) => {
+        e.stopPropagation();
+        setViewingRecipe({ id: null, title: '', ingredients: [{ name: '', quantity: '', unit: '' }], instructions: '' })
+      }}>New Recipe</button>
+
       <ul>
         {recipes.map(recipe => (
           <li key={recipe.id} className="recipe" onClick={() => handleAssign(selectedDay, recipe.id)} style={{ cursor: 'pointer' }}>
-            <span>{recipe.title}</span>
+            <p>{recipe.title}</p>
             <button onClick={(e) => {
               e.stopPropagation();
               setViewingRecipe(recipe);
@@ -45,15 +53,10 @@ function RecipeManager({ isDisplayed, recipes, setRecipes, selectedDay, handleAs
         ))}
       </ul>
 
-      <div>
+      {/* <div>
         <input value={importUrl} onChange={e => setImportUrl(e.target.value)} placeholder="Recipe URL" />
         <button onClick={handleImport}>Import from URL</button>
-      </div>
-
-      <button onClick={(e) => {
-        e.stopPropagation();
-        setViewingRecipe({ id: null, title: '', ingredients: [{ name: '', quantity: '', unit: '' }], instructions: '' })
-      }}>New Recipe</button>
+      </div> */}
     </div >
   )
 }
