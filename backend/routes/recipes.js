@@ -19,21 +19,17 @@ module.exports = (prisma) => {
     }
 
     router.get('/recipes', async (req, res) => {
-        try {
-            const recipes = await prisma.recipes.findMany({
-                include: {
-                    ingredients: true,
-                    instructions: {
-                        orderBy: { step: 'asc' }
-                    }
-                }, orderBy: { id: 'asc' }
+        const recipes = await prisma.recipes.findMany({
+            include: {
+                ingredients: true,
+                instructions: {
+                    orderBy: { step: 'asc' }
+                }
+            }, orderBy: { id: 'asc' }
 
-            });
-            res.json(recipes);
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
+        });
+        res.json(recipes);
+
     });
 
     // router.post('/recipes/import-from-url', async (req, res) => {
@@ -66,53 +62,38 @@ module.exports = (prisma) => {
     // });
 
     router.post('/recipes', async (req, res) => {
-        try {
-            const newRecipe = await createRecipe(req.body);
-            res.status(201).json(newRecipe);
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: err.message });
-        }
+        const newRecipe = await createRecipe(req.body);
+        res.status(201).json(newRecipe);
     });
 
     router.put('/recipes/:id', async (req, res) => {
-        try {
-            const { id } = req.params;
-            const { title, ingredients, instructions } = req.body;
+        const { id } = req.params;
+        const { title, ingredients, instructions } = req.body;
 
-            const updatedRecipe = await prisma.recipes.update({
-                where: { id: parseInt(id) },
-                data: {
-                    title,
-                    instructions: {
-                        deleteMany: {},
-                        create: instructions.map(instruction => ({ step: instruction.step, instruction: instruction.instruction }))
-                    },
-                    ingredients: {
-                        deleteMany: {},
-                        create: ingredients.map(ingredient => ({ name: normalizeIngredient(ingredient.name), unit: normalizeUnit(ingredient.unit), quantity: ingredient.quantity }))
-                    }
+        const updatedRecipe = await prisma.recipes.update({
+            where: { id: parseInt(id) },
+            data: {
+                title,
+                instructions: {
+                    deleteMany: {},
+                    create: instructions.map(instruction => ({ step: instruction.step, instruction: instruction.instruction }))
                 },
-                include: { ingredients: true, instructions: true }
-            });
-            res.json(updatedRecipe);
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: err.message });
-        }
+                ingredients: {
+                    deleteMany: {},
+                    create: ingredients.map(ingredient => ({ name: normalizeIngredient(ingredient.name), unit: normalizeUnit(ingredient.unit), quantity: ingredient.quantity }))
+                }
+            },
+            include: { ingredients: true, instructions: true }
+        });
+        res.json(updatedRecipe);
     });
 
     router.delete('/recipes/:id', async (req, res) => {
-        try {
-            const { id } = req.params;
-            await prisma.instructions.deleteMany({ where: { recipe_id: parseInt(id) } });
-            await prisma.ingredients.deleteMany({ where: { recipe_id: parseInt(id) } });
-            await prisma.recipes.delete({ where: { id: parseInt(id) } });
-            res.status(204).send()
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: err.message });
-        }
+        const { id } = req.params;
+        await prisma.instructions.deleteMany({ where: { recipe_id: parseInt(id) } });
+        await prisma.ingredients.deleteMany({ where: { recipe_id: parseInt(id) } });
+        await prisma.recipes.delete({ where: { id: parseInt(id) } });
+        res.status(204).send()
     });
 
     return router;

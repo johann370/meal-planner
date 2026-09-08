@@ -2487,6 +2487,101 @@ is set up in Section 1, before any app code, and used throughout.
     weakness applied there too, once it had been named for the other
     test. Confirmed via `npm test`: 8/8 passing.
 
+27. **Global error handler + `AppError`.** Chosen 2026-09-05, at the
+    student's request, while reading up on design patterns (MVC among
+    them) and noticing the routes mix a lot of concerns, plus how much
+    repeated `try`/`catch` boilerplate every route carries. **Scope
+    narrowed to just the error handler this session** — the MVC-style
+    controller/service split was raised as a real idea but deliberately
+    not started yet, separate and independent from this.
+    *Deliverable: routes stop needing their own `try`/`catch`, relying
+    on Express to forward thrown/rejected errors to one central handler,
+    which decides what's safe to show the client vs. generic.*
+
+    Plan worked out by the student via guided questions, per
+    [[prefers-working-out-problems-first]] — the key mechanism (Express
+    5's automatic forwarding of a rejected `async` handler's promise to
+    error middleware, unlike Express 4 which needs a manual `next(err)`)
+    explained directly on request, then confirmed understood via a
+    trace-through question. Real design gap caught before writing code:
+    an early plan of "show `err.message` if it exists, else generic" was
+    walked through against a counterexample (every `Error` always has a
+    `.message`, including ones that shouldn't be shown) and replaced
+    with an allow-list — a custom `AppError` class for deliberately
+    "safe to show" errors, generic for everything else — which also
+    naturally subsumes Section 14.6's old GET-vs-mutation-route
+    distinction without hardcoding on route type at all.
+
+    - [x] `lib/AppError.js` — `class AppError extends Error`, constructor
+          taking `(message, statusCode)`, plus `Error.captureStackTrace`
+          (a nice touch, self-added, not asked for).
+    - [x] `middleware/errorHandler.js` — the actual error-handling
+          middleware, `if (err instanceof AppError)` → status + message
+          from the error, else generic `500`/"Internal Server Error".
+          Several real, self-corrected bugs on the way: (1) a first
+          draft used ES module `import` syntax in a pure-CommonJS
+          project — self-fixed to `require` once asked what running it
+          would actually throw; (2) a case-mismatched path
+          (`../lib/appError` vs. the real `lib/AppError.js`) on a
+          case-sensitive filesystem — self-corrected once asked to
+          check the real file's exact name; (3) an intermediate version
+          skipped the `instanceof AppError` check entirely (defeating
+          the whole point of building it — every error's raw `.message`
+          would've leaked to the client) — self-corrected back to it
+          once asked to reconsider why `AppError` existed in the first
+          place. Also self-decided, correctly, to only `console.error`
+          the generic branch (an `AppError` is an expected/deliberate
+          outcome, not a bug worth logging like one).
+    - [x] Wired into `app.js` via `app.use(errorHandler)`, correctly
+          placed after every route mount.
+    - [x] `routes/auth.js` refactored: `try`/`catch` removed, wrong
+          password now `throw new AppError('Invalid password', 401)`.
+          One real, self-diagnosed bug: `AppError` was used but never
+          `require`d at all — correctly traced through what a
+          `ReferenceError` there would do to the "wrong password" test
+          (fall into the generic branch, `500` instead of the expected
+          `401`) before fixing it.
+    - [x] `routes/week.js` refactored: `try`/`catch` removed from `PUT`/
+          `DELETE`. One real design question worked through rather than
+          answered outright: removing `catch` means mutation routes stop
+          passing through `err.message` the way Section 14.6 originally
+          chose — reframed as "was blindly leaking a raw Prisma error
+          message actually good practice to keep?" rather than a
+          straightforward regression. Landed on adding a real, deliberate
+          `AppError('Day not found', 404)` guard for the one genuinely
+          meaningful case (`weekMeal` null on an invalid `:day`), while
+          letting everything else fall through generic.
+    - [x] `routes/recipes.js` refactored: `try`/`catch` removed from
+          `POST`/`PUT`/`DELETE`. Explicitly weighed and declined adding
+          the same existence-check-then-`AppError` pattern to `PUT`/
+          `DELETE /recipes/:id` — correctly reasoned the extra DB
+          round-trip per call wasn't worth it just for a nicer error
+          message, in favor of the alternative below instead.
+    - [x] `routes/groceryList.js` — confirmed already clean, never had a
+          `try`/`catch` to begin with.
+    - [ ] **Paused here 2026-09-05, picking up next session:**
+          recognizing Prisma's specific "record not found" error
+          (`Prisma.PrismaClientKnownRequestError` with `code === 'P2025'`
+          — a `PUT`/`DELETE` targeting a nonexistent recipe `id` throws
+          this) globally in `errorHandler.js`, instead of adding a
+          per-route existence check. Concept explained directly on
+          request (Prisma's known-error-code system), the "detect Prisma
+          errors" instinct initially pushed back on once already this
+          session (in an earlier, different context — deciding whether
+          to *trust* `err.message`) but correctly distinguished by the
+          student as a different problem here: recognizing one specific,
+          well-documented error code and mapping it to a clean, generic
+          message — not blindly trusting arbitrary Prisma error text.
+          Design settled through a few wrong turns, self-corrected each
+          time: first considered `throw`ing inside the error-handling
+          middleware itself (self-recognized nothing catches an error
+          thrown from the *last* middleware in the chain, once asked);
+          landed on reassigning `err = new AppError('Record not found',
+          404)` *before* the existing `if (err instanceof AppError)`
+          check, so one unified path handles both cases with no
+          duplicated response-building code. Agreed on, not yet written
+          into `errorHandler.js`.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -2534,6 +2629,19 @@ requested directly rather than as a plan task, recorded the same way.
   immediately. Real fix considered: a persistent shared store, e.g.
   `connect-pg-simple` (already on Postgres) or Redis. Not yet turned
   into a task.
+
+- **`PUT /recipes/:id` crashes with a raw 500 if `ingredients`/
+  `instructions` are missing from the request body.** Noticed 2026-09-08
+  while live-testing the new Prisma-P2025-to-404 handling in
+  `errorHandler.js`: a malformed test body (no `instructions` key) hit
+  `instructions.map(...)` in `routes/recipes.js` before the request ever
+  reached Prisma, throwing a `TypeError` — caught by `errorHandler.js`'s
+  generic `else` branch, so it's indistinguishable from any other
+  unexpected 500 without reading the log. Not a regression from the
+  error-handling refactor, just newly visible while poking at it. Not
+  yet turned into a task; possible fix shape would be validating the
+  request body's shape before it reaches Prisma at all, rather than only
+  handling Prisma-level errors globally.
 
 ## Known issues (fixed)
 
