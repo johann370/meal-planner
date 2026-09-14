@@ -2582,6 +2582,180 @@ is set up in Section 1, before any app code, and used throughout.
           duplicated response-building code. Agreed on, not yet written
           into `errorHandler.js`.
 
+28. **Controller/service split (route-by-route).** Picked up 2026-09-08 —
+    the MVC-style split flagged as deliberately deferred in Section 27
+    is now being started. Plan as stated: go route file by route file,
+    pulling each into a controller + a data-access layer, rather than
+    doing the whole backend at once.
+
+    Obstacles motivating the split, stated directly by the student
+    2026-09-08 (not yet turned into concrete task breakdown):
+    1. Changing the DB schema currently means changing Prisma calls in
+       multiple scattered locations, with no single place holding them
+       all — so a schema change means both hunting down every affected
+       spot and holding in mind everything a given change might touch.
+    2. The frontend breaks on backend changes because there's no
+       standardized shape for the data going over the wire between
+       them.
+    3. No dedicated spot for validating incoming request data — a
+       client can send anything, and when something's wrong the
+       response is just a generic "Internal Server Error" with no
+       detail on what actually failed (related to the newly-noticed gap
+       above: `PUT /recipes/:id` 500ing on a missing `ingredients`/
+       `instructions` key is a concrete instance of this same problem).
+
+    Design questions worked through via guided questions before writing
+    any of it:
+    - **Naming: "service", not "model."** Prisma already generates
+      *models* from `schema.prisma` (`prisma.recipes`, etc.), so a new
+      layer also called "model" would collide with that. Landed on
+      `services/` for the data-access layer.
+    - **How a service gets its `prisma` instance.** Considered
+      dependency injection (keep threading `prisma` down through a
+      factory function, the existing pattern in every route file) vs.
+      each service `require`ing the `lib/prisma.js` singleton directly.
+      Correctly reasoned that `require`'s module caching means both
+      options resolve to the exact same single `PrismaClient` instance
+      either way, so "only one instance" doesn't distinguish them — the
+      real tradeoff is coupling/swappability (DI lets a caller hand in
+      a different client, e.g. for tests, without editing the service;
+      direct `require` hard-wires the service to one specific file).
+      Deliberately chose direct `require` anyway, prioritizing fewer
+      layers of indirection to trace through over swappability not
+      currently needed. Consequence traced through correctly: a route
+      file with no service to inject nothing into no longer needs to be
+      a factory function at all — collapses to a plain
+      `module.exports = router`, and its `app.js` mount line drops the
+      `(prisma)` call.
+    - **Controller/service boundary.** Services stay pure data in/out —
+      no HTTP concepts, return `null` on a lookup miss rather than
+      throwing. Controllers own anything touching `req`/`res`: response
+      reshaping (e.g. raw Prisma rows → the exact JSON shape the
+      frontend wants), existence checks, and translating a `null` into
+      `throw new AppError(...)`.
+
+    - [x] **`routes/auth.js`** (2026-09-08) — first through the split,
+          chosen for being smallest. Correctly recognized up front that
+          this route never touches the database at all (password check
+          is against `process.env.ADMIN_PASSWORD_HASH`, not Prisma), so
+          it gets a controller only, no service — a real, useful
+          exception to the pattern rather than a gap. `login` moved
+          into `controllers/authController.js` unchanged; one
+          self-corrected omission (`module.exports = { login }` missing
+          entirely at first, caught when asked how `routes/auth.js`
+          would get access to it). `routes/auth.js` now just
+          `router.post('/login', authController.login)`. `npm test`:
+          8/8 passing.
+    - [x] **`routes/week.js`** (2026-09-08) — first route through the
+          split with a real service layer
+          (`services/weekService.js`: `getWeek`, `getDay`, `updateMeal`,
+          `deleteMeals`, all thin `await prisma.week_meal...` wrappers)
+          and `controllers/weekController.js` owning the
+          `{day, meal}` reshape and the `Day not found`/`Week not
+          found` `AppError` guards. Several real bugs hit and
+          self-diagnosed via guided questions rather than pointed out
+          directly:
+          1. `weekController.js` only exported `{ getWeek }`, leaving
+             `updateDayMeal`/`deleteMeals` as `undefined` — crashed the
+             entire test suite at import time (`argument handler must
+             be a function`) before any test could even run.
+          2. None of the three controller functions were `async`, and
+             none of their calls into `weekService`'s `async` functions
+             were `await`ed — `weekMeal` ended up being a `Promise`
+             object rather than the resolved row, which then reached
+             Prisma as `where: { id: undefined }` and threw a
+             `PrismaClientValidationError` that crashed the whole Node
+             process rather than returning a clean error. Correctly
+             connected this to Express 5's automatic rejected-promise
+             forwarding (Section 27): with no `async` on the handler,
+             there's no promise for Express to watch, so the rejection
+             had nowhere to go.
+          3. `router.delete('week/meals', ...)` — missing leading `/`,
+             silently registered a route that never matched, giving a
+             `404` where `204` was expected. Spotted by comparing
+             against the two correctly-written routes right above it.
+          4. `weekController.js` used `AppError` on two lines without
+             ever `require`-ing it — same shape of bug as the `auth.js`
+             and `errorHandler.js` `Prisma` import bugs from Section 27,
+             but this time *not* caught by the test suite, since no
+             existing test exercises an invalid `:day` or an empty
+             week. Used deliberately as a lesson: "8/8 passing" tells
+             you the tested paths work, not that every path is bug-free
+             — the untested `AppError` paths were both silently broken
+             until asked to check.
+
+          `npm test`: 8/8 passing after all four fixes. `app.js` mount
+          updated to `app.use('/api', weekRoutes)` (no more `(prisma)`
+          call, per the direct-`require` decision above).
+
+    Ideas raised 2026-09-08 while working through `week.js`, not yet
+    started or turned into tasks:
+    - **Expand test coverage once the refactor settles.** The existing
+      8 tests don't cover every case that now matters — concretely,
+      `week.js`'s two `AppError` paths (`Day not found`/`Week not
+      found`) went unexercised and stayed silently broken (missing
+      `AppError` import) through the whole refactor, only caught by
+      manual inspection rather than a failing test.
+    - **Split `app.test.js` into multiple files**, organized by route
+      or feature, rather than one growing file — for manageability as
+      test count increases from the above.
+    - **Possibly move the `{day, meal}` week-formatting function out of
+      `weekController.js` into its own file.** Motive clarified: not a
+      reversal of the controller/service boundary (reshaping for the
+      frontend response is still a controller concern) — driven by
+      wanting it testable in isolation as a pure function, separate
+      from an HTTP request/response cycle. Naming settled: **serializers**
+      (a dedicated layer converting DB records into API-response shape,
+      distinct from `services/`'s data-access-only meaning). Not yet
+      built — `weekFormatter`/`weekSerializer` not yet extracted.
+
+    - [x] **`routes/groceryList.js`** (2026-09-14) — `services/
+          groceryListService.js` + `controllers/groceryListController.js`,
+          same naming/boundary as `auth.js`/`week.js`. Along the way,
+          the combining `reduce`/`.find()`/`.sort()` chain inside
+          `getGroceryList` was pulled into its own local helper,
+          `sumIngredients` — purely for readability (no reuse or
+          testing motive), so kept unexported in the same file rather
+          than promoted to its own module; flagged that not exporting
+          it means it can't be unit-tested in isolation if a testing
+          motive shows up later. One self-diagnosed bug, same shape as
+          Section 28's earlier `week.js` bugs: `groceryListController.js`
+          called the `async` `groceryListService.getGroceryList()`
+          without `await`, so `res.json(...)` would have serialized a
+          `Promise` object rather than the resolved list — caught by
+          tracing through by hand, not by `npm test` (`GET
+          /api/grocery-list` has no test coverage).
+    - [x] **`routes/recipes.js`** (2026-09-14) — `services/
+          recipesService.js` + `controllers/recipesController.js`, same
+          split. Two more self-diagnosed bugs, both in the `PUT
+          /recipes/:id` path, again invisible to `npm test` since that
+          route also has no test coverage: (1) the controller called
+          `recipesService.updateRecipe(...)`, a name that didn't exist
+          on the service yet (still `editRecipe` there, and the
+          function's own `module.exports` still referenced the
+          controller's old `editRecipe` name too, briefly crashing the
+          whole suite at import time with `ReferenceError: editRecipe is
+          not defined` — same failure shape as Section 28's earlier
+          `weekController.js` export bug); settled by renaming
+          consistently to `updateRecipe` on both the service and the
+          route wiring, not just one side. (2) The same missing-`await`
+          bug as `groceryList.js` above, on the call into
+          `recipesService.updateRecipe(...)`.
+
+          **Resolved the open normalization question** (service vs.
+          controller) worked out via guided questions: normalization
+          stays in `recipesService.js`, where it already was. Reasoning
+          landed on by the student: the controller's validation job is
+          checking the incoming data is the *right shape/type* (a
+          request-level concern), while normalization
+          (`normalizeUnit`/`normalizeIngredient` deciding "Pound" and
+          "lb" mean the same thing) is a *business rule about how
+          already-valid data should be treated* — squarely a service
+          concern. Consistent with `groceryListService.js`'s
+          `sumIngredients` already treating normalization the same way,
+          as part of "how ingredients combine," never reached into by
+          `groceryListController.js`.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
