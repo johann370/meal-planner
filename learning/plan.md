@@ -2817,6 +2817,84 @@ requested directly rather than as a plan task, recorded the same way.
   request body's shape before it reaches Prisma at all, rather than only
   handling Prisma-level errors globally.
 
+- **Backend test plan — written, all passing (completed 2026-09-23).**
+  Mapped out 2026-09-15, full checklist in `design/test-plan.md`. Every
+  item is now checked off: service, lib, and middleware unit tests plus
+  integration tests for all four controllers (66/66 passing). The missing
+  validation/fixes each test depended on were built along the way (see
+  that file's "Fixed" section).
+
+- **Next session, queued 2026-09-23: design pass before any new feature.**
+  The student's plan: (1) write down the input and response shape for
+  every route, (2) figure out what new tables are needed, (3) list the
+  functionality they want to add, (4) then pick which feature to build
+  next. Candidates already floated: real user accounts (prerequisite for
+  the suggestion algorithm below), recipe suggestions, import-from-URL
+  (`recipeParser.js`). Open questions to fold in: different units for the
+  same ingredient in the grocery list, instruction step ordering.
+
+- **Recipe suggestion algorithm — future feature, research only so far.**
+  From daily-log 2026-09-15's note 5: a per-user recommendation system —
+  tag recipes by category (protein/dish/etc.), keep a per-user score per
+  tag that rises when a recipe's assigned to the calendar and falls on
+  an explicit dislike, then suggest recipes ranked by matching score.
+  Depends on real multi-user accounts existing first (currently just one
+  shared admin login, no `users` table) — that's a prerequisite section
+  of its own, before this is buildable.
+  Also worked through *how* to pick which recipe to suggest, so it isn't
+  always just the single top-scoring match on repeat: that's the
+  exploration-vs-exploitation problem from recommender systems /
+  multi-armed bandits. Simplest fix is weighted random sampling
+  (softmax over scores, so a high score is more *likely* but not
+  guaranteed). For something more principled later: UCB or Thompson
+  Sampling — both track *confidence* in a category's score alongside the
+  score itself, so a category picked consistently gets suggested more
+  reliably over time (tighter confidence, not just a higher number),
+  while one tried once or twice doesn't get over-trusted off a single
+  data point. Note: the "pick the same category more if the user keeps
+  picking it" reinforcement itself would already happen with plain score
+  accumulation alone — what bandit algorithms specifically add on top is
+  the confidence/uncertainty handling, not the reinforcement direction.
+  A future chatbot layer (user describes what they want in free text,
+  extract categories from it to adjust scores) was also floated, but
+  treated as a separate, later stretch goal on top of this foundation,
+  not part of the same first pass.
+
+  **Rough follow-up thinking, 2026-09-15, on how that chatbot layer would
+  feed the scoring system — all very likely to change, just early ideas:**
+  a parsed keyword/category from the chat would get (a) a temporary boost
+  applied just to that suggestion pass, and (b) a small permanent bump to
+  the persistent score too, so asking for the same thing repeatedly is
+  itself treated as a real preference signal over time, not just a
+  one-off override. Undecided whether the boost is additive or
+  multiplicative — leaning toward just testing both and comparing.
+  Scope: a boost applies to every suggestion in a batch by default, but
+  can be scoped narrower (e.g. "something quick for the weekdays") —
+  fits naturally since `week_meal` is already one row per day, so each
+  day already gets its own independent suggestion pass to apply a scoped
+  boost to. Loose end: this means the chatbot's extraction step needs to
+  output tag+scope pairs (e.g. "quick" -> Mon-Fri), not just a flat list
+  of keywords.
+
+  **Also discussed, 2026-09-15: whether this is worth a resume line, and
+  how to actually demonstrate it — rough ideas, not decided/built:**
+  worth including for an entry-level resume as a differentiator beyond a
+  typical CRUD portfolio project, but only after the fundamentals (a
+  deployed working app, clean code, real tests) are solid — those are
+  what most entry-level screens actually filter on first. The real
+  practical problem: a recommendation system needs a long history of
+  real usage to visibly prove it's working, which a solo/personal
+  project won't have naturally. Two ideas that pair well: (1) a script
+  that seeds fake usage history (simulated picks/dislikes over a
+  compressed fake timeline) so the suggester's behavior can actually be
+  demoed/screenshotted; (2) tests that seed known scores, run the
+  selection function many times, and assert the resulting distribution
+  matches the expected weighting — a stronger, more convincing proof of
+  correctness than a live demo alone. A README/write-up explaining the
+  design reasoning (tags -> scores -> explore/exploit -> why bandits
+  over plain top-N) was also floated as its own separate portfolio
+  artifact.
+
 ## Known issues (fixed)
 
 - **Tests shouldn't have to manually restore database state.** Flagged
