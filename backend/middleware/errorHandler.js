@@ -7,6 +7,9 @@ const errorHandler = (err, req, res, next) => {
             case 'P2025':
                 err = new AppError("Record not found", 404);
                 break;
+            case 'P2003':
+                err = new AppError('Referenced record not found', 400);
+                break;
         }
     }
 

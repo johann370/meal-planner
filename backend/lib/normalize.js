@@ -11,11 +11,17 @@ const unitSynonyms = {
 };
 
 function normalizeUnit(rawUnit) {
+    if (!rawUnit) {
+        return '';
+    }
     const cleaned = rawUnit.trim().toLowerCase().replace(/\.$/, '');
     return unitSynonyms[cleaned] || cleaned;
 }
 
 function normalizeIngredient(rawIngredient) {
+    if (!rawIngredient) {
+        return '';
+    }
     const cleaned = rawIngredient.trim().toLowerCase();
     return cleaned;
 }

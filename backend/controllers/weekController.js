@@ -1,5 +1,7 @@
 const weekService = require('../services/weekService');
 const AppError = require('../lib/AppError.js');
+const { serializeWeek } = require('../lib/serializeData.js');
+const { validateDay, validateId } = require('../lib/validateInput.js');
 
 const getWeek = async (req, res) => {
     const week = await weekService.getWeek();
@@ -8,13 +10,19 @@ const getWeek = async (req, res) => {
         throw new AppError('Week not found', 404);
     }
 
-    const weekFormatted = week.map(row => row.recipes ? ({ day: row.day, meal: row.recipes.title }) : ({ day: row.day, meal: null }));
-    res.json(weekFormatted);
+    const serializedWeek = serializeWeek(week);
+
+    res.json(serializedWeek);
 }
 
 const updateDayMeal = async (req, res) => {
     const { day } = req.params;
+    validateDay(day);
+
     const { recipeId } = req.body;
+    if (recipeId !== null) {
+        validateId(recipeId);
+    }
 
     const weekMeal = await weekService.getDay(day);
 

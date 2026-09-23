@@ -1,7 +1,12 @@
 const prisma = require('../lib/prisma');
 const { normalizeUnit, normalizeIngredient } = require('../lib/normalize.js');
+const AppError = require('../lib/AppError.js');
 
 const createRecipe = async (title, ingredients, instructions) => {
+    if (!title) {
+        throw new AppError('Title cannot be empty', 400);
+    }
+
     const newRecipe = await prisma.recipes.create({
         data: {
             title,
@@ -26,7 +31,7 @@ const getRecipes = async () => {
 
 const updateRecipe = async (id, title, ingredients, instructions) => {
     return await prisma.recipes.update({
-        where: { id: parseInt(id) },
+        where: { id },
         data: {
             title,
             instructions: {
@@ -43,9 +48,14 @@ const updateRecipe = async (id, title, ingredients, instructions) => {
 }
 
 const deleteRecipe = async (id) => {
-    await prisma.instructions.deleteMany({ where: { recipe_id: parseInt(id) } });
-    await prisma.ingredients.deleteMany({ where: { recipe_id: parseInt(id) } });
-    await prisma.recipes.delete({ where: { id: parseInt(id) } });
+    await prisma.week_meal.updateMany({
+        where: { recipe_id: id },
+        data: { recipe_id: null }
+    });
+
+    await prisma.instructions.deleteMany({ where: { recipe_id: id } });
+    await prisma.ingredients.deleteMany({ where: { recipe_id: id } });
+    await prisma.recipes.delete({ where: { id } });
 }
 
 

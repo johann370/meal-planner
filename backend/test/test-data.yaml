@@ -1,0 +1,116 @@
+recipes:
+      - id: 1 
+        title: Pasta
+        instructions:
+            - id: 1
+              step: 1
+              instruction: Boil Pasta
+              recipe_id: 1
+            - id: 2
+              step: 2
+              instruction: Cook Sauce
+              recipe_id: 1
+            - id: 3
+              step: 3
+              instruction: Combine 
+              recipe_id: 1
+        ingredients:
+            - id: 1
+              name: Pasta
+              quantity: 1
+              unit: lb
+              recipe_id: 1
+            - id: 2
+              name: Tomato sauce
+              quantity: 1
+              unit: cup
+              recipe_id: 1
+      - id: 2
+        title: Burrito
+        instructions:
+            - id: 4
+              step: 1
+              instruction: Cook chicken
+              recipe_id: 2
+            - id: 5
+              step: 2
+              instruction: Dice chicken
+              recipe_id: 2
+            - id: 6
+              step: 3
+              instruction: Warm tortilla
+              recipe_id: 2
+            - id: 7
+              step: 4
+              instruction: Wrap burrito
+              recipe_id: 2
+        ingredients:
+            - id: 3
+              name: Chicken
+              quantity: 1
+              unit: lb
+              recipe_id: 2
+            - id: 4
+              name: Tortilla
+              quantity: 1
+              unit: 
+              recipe_id: 2
+      - id: 3
+        title: Sandwich
+        instructions:
+            - id: 8
+              step: 1
+              instruction: Spread mayo on bread
+              recipe_id: 3
+            - id: 9
+              step: 2
+              instruction: Put meat in sandwich
+              recipe_id: 3
+            - id: 10
+              step: 3
+              instruction: Put cheese in sandwich
+              recipe_id: 3
+            - id: 11
+              step: 4
+              instruction: Close sandwich
+              recipe_id: 3
+        ingredients:
+            - id: 5
+              name: Bread
+              quantity: 2
+              unit: slice
+              recipe_id: 3
+            - id: 6
+              name: Meat
+              quantity: 2
+              unit: slice
+              recipe_id: 3
+            - id: 7
+              name: Cheese
+              quantity: 1
+              unit: slice
+              recipe_id: 3
+
+
+week_meal:
+    - id: 1
+      day: Monday
+      recipe_id: 1
+    - id: 2
+      day: Tuesday
+      recipe_id: null
+    - id: 3
+      day: Wednesday
+      recipe_id: 3
+    - id: 4
+      day: Thursday
+      recipe_id: 1
+    - id: 5
+      day: Friday
+      recipe_id: null
+    - id: 6
+      day: Saturday
+      recipe_id: 2
+    - id: 7
+      day: Sunday
+      recipe_id: 2

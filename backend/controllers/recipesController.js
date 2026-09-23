@@ -1,29 +1,40 @@
 const recipesService = require('../services/recipesService');
+const { serializeRecipe } = require('../lib/serializeData');
+const { validateRecipe, validateId } = require('../lib/validateInput');
 
 const getRecipes = async (req, res) => {
     const recipes = await recipesService.getRecipes();
 
-    res.json(recipes);
+    const serializedRecipes = recipes.map(recipe => serializeRecipe(recipe));
+
+    res.json(serializedRecipes);
 }
 
 const createRecipe = async (req, res) => {
+    validateRecipe(req.body);
+
     const { title, ingredients, instructions } = req.body;
     const newRecipe = await recipesService.createRecipe(title, ingredients, instructions);
 
-    res.status(201).json(newRecipe);
+    res.status(201).json(serializeRecipe(newRecipe));
 }
 
 const updateRecipe = async (req, res) => {
+    validateRecipe(req.body);
     const { id } = req.params;
+    validateId(id);
     const { title, ingredients, instructions } = req.body;
-    const updatedRecipe = await recipesService.updateRecipe(id, title, ingredients, instructions);
 
-    res.json(updatedRecipe);
+    const updatedRecipe = await recipesService.updateRecipe(Number(id), title, ingredients, instructions);
+
+    res.json(serializeRecipe(updatedRecipe));
 }
 
 const deleteRecipe = async (req, res) => {
     const { id } = req.params;
-    await recipesService.deleteRecipe(id);
+    validateId(id);
+
+    await recipesService.deleteRecipe(Number(id));
 
     res.status(204).send();
 }
