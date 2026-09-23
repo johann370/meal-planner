@@ -2433,6 +2433,329 @@ is set up in Section 1, before any app code, and used throughout.
           removing a step works and persists, all tests pass; commit and
           push.
 
+26. **Tests reset the database automatically instead of restoring it by
+    hand.** Chosen 2026-09-05, at the student's request, from the "Not
+    yet broken down" backlog (originally flagged 2026-09-01) — closing
+    out one of the two obstacles logged in `obstacles.md` the same
+    session.
+    *Deliverable: every test starts from a genuinely known, blank state
+    automatically, with no test responsible for capturing/restoring
+    "whatever was already there" by hand.*
+
+    Plan worked out by the student, refined through guided questions
+    (not answers), per [[prefers-working-out-problems-first]]:
+    - Initial idea: wipe all data before every test. Two real gaps
+      surfaced by questions rather than told outright: (1) `week_meal`
+      isn't data to delete the same way `recipes` is — it's always
+      exactly 7 day rows, which `GET /api/week` depends on existing;
+      correctly landed on nulling `recipe_id` on all 7 rather than
+      deleting them. (2) the FK relations are all `onDelete: NoAction`,
+      so `recipes` can't be deleted while any `week_meal` row still
+      references one — correctly reasoned the deletion order needs
+      `week_meal` (nulled) → `ingredients`/`instructions` → `recipes`.
+    - Correctly recognized, once asked, that resetting to blank breaks
+      the two tests that assumed *ambient* pre-existing assignments
+      (`unassigns a recipe`, `clears all meals`) — their own stated fix:
+      "assign data during those tests" instead of reading/relying on
+      whatever the shared app state happened to hold.
+
+    **Completed 2026-09-05.** `beforeEach` (`app.test.js`) extended with
+    the reset, in the correct dependency order, self-authored correct on
+    the first try: `week_meal.updateMany({data: {recipe_id: null}})` →
+    `ingredients.deleteMany()` → `instructions.deleteMany()` →
+    `recipes.deleteMany()`, using `app.prisma` (already exposed on the
+    exported `app` for `afterAll`'s `$disconnect()`). Confirmed the
+    predicted breakage for real by actually running the suite first,
+    rather than assuming: `assigns a recipe to a day` and `with null
+    recipeId unassigns a recipe` both failed exactly as expected, on
+    `originalRecipe` being `undefined` once there was nothing ambient
+    left to look up (`clears all meals` happened to survive uncaught,
+    thanks to its own pre-existing `recipe ? recipe.id : null` guard —
+    weaker coverage, not a crash).
+
+    Fixes, all self-authored: removed the now-dead capture/restore code
+    from `creates a recipe`, `assigns a recipe`, and `unassigns a
+    recipe` (redundant now that `beforeEach` handles cleanup
+    automatically regardless of what a test does); `unassigns a recipe`
+    rewritten to create-and-assign a recipe to Tuesday first, so
+    unassigning it afterward is a real, meaningful transition instead of
+    null-to-null. Self-initiated, unprompted, past what was actually
+    asked about: applied the exact same fix to `clears all meals` too —
+    create one recipe, assign it to all seven days via
+    `Promise.all(days.map(day => agent.put(...)))`, *then* clear and
+    assert every day is null — recognizing the same "asserting a no-op"
+    weakness applied there too, once it had been named for the other
+    test. Confirmed via `npm test`: 8/8 passing.
+
+27. **Global error handler + `AppError`.** Chosen 2026-09-05, at the
+    student's request, while reading up on design patterns (MVC among
+    them) and noticing the routes mix a lot of concerns, plus how much
+    repeated `try`/`catch` boilerplate every route carries. **Scope
+    narrowed to just the error handler this session** — the MVC-style
+    controller/service split was raised as a real idea but deliberately
+    not started yet, separate and independent from this.
+    *Deliverable: routes stop needing their own `try`/`catch`, relying
+    on Express to forward thrown/rejected errors to one central handler,
+    which decides what's safe to show the client vs. generic.*
+
+    Plan worked out by the student via guided questions, per
+    [[prefers-working-out-problems-first]] — the key mechanism (Express
+    5's automatic forwarding of a rejected `async` handler's promise to
+    error middleware, unlike Express 4 which needs a manual `next(err)`)
+    explained directly on request, then confirmed understood via a
+    trace-through question. Real design gap caught before writing code:
+    an early plan of "show `err.message` if it exists, else generic" was
+    walked through against a counterexample (every `Error` always has a
+    `.message`, including ones that shouldn't be shown) and replaced
+    with an allow-list — a custom `AppError` class for deliberately
+    "safe to show" errors, generic for everything else — which also
+    naturally subsumes Section 14.6's old GET-vs-mutation-route
+    distinction without hardcoding on route type at all.
+
+    - [x] `lib/AppError.js` — `class AppError extends Error`, constructor
+          taking `(message, statusCode)`, plus `Error.captureStackTrace`
+          (a nice touch, self-added, not asked for).
+    - [x] `middleware/errorHandler.js` — the actual error-handling
+          middleware, `if (err instanceof AppError)` → status + message
+          from the error, else generic `500`/"Internal Server Error".
+          Several real, self-corrected bugs on the way: (1) a first
+          draft used ES module `import` syntax in a pure-CommonJS
+          project — self-fixed to `require` once asked what running it
+          would actually throw; (2) a case-mismatched path
+          (`../lib/appError` vs. the real `lib/AppError.js`) on a
+          case-sensitive filesystem — self-corrected once asked to
+          check the real file's exact name; (3) an intermediate version
+          skipped the `instanceof AppError` check entirely (defeating
+          the whole point of building it — every error's raw `.message`
+          would've leaked to the client) — self-corrected back to it
+          once asked to reconsider why `AppError` existed in the first
+          place. Also self-decided, correctly, to only `console.error`
+          the generic branch (an `AppError` is an expected/deliberate
+          outcome, not a bug worth logging like one).
+    - [x] Wired into `app.js` via `app.use(errorHandler)`, correctly
+          placed after every route mount.
+    - [x] `routes/auth.js` refactored: `try`/`catch` removed, wrong
+          password now `throw new AppError('Invalid password', 401)`.
+          One real, self-diagnosed bug: `AppError` was used but never
+          `require`d at all — correctly traced through what a
+          `ReferenceError` there would do to the "wrong password" test
+          (fall into the generic branch, `500` instead of the expected
+          `401`) before fixing it.
+    - [x] `routes/week.js` refactored: `try`/`catch` removed from `PUT`/
+          `DELETE`. One real design question worked through rather than
+          answered outright: removing `catch` means mutation routes stop
+          passing through `err.message` the way Section 14.6 originally
+          chose — reframed as "was blindly leaking a raw Prisma error
+          message actually good practice to keep?" rather than a
+          straightforward regression. Landed on adding a real, deliberate
+          `AppError('Day not found', 404)` guard for the one genuinely
+          meaningful case (`weekMeal` null on an invalid `:day`), while
+          letting everything else fall through generic.
+    - [x] `routes/recipes.js` refactored: `try`/`catch` removed from
+          `POST`/`PUT`/`DELETE`. Explicitly weighed and declined adding
+          the same existence-check-then-`AppError` pattern to `PUT`/
+          `DELETE /recipes/:id` — correctly reasoned the extra DB
+          round-trip per call wasn't worth it just for a nicer error
+          message, in favor of the alternative below instead.
+    - [x] `routes/groceryList.js` — confirmed already clean, never had a
+          `try`/`catch` to begin with.
+    - [ ] **Paused here 2026-09-05, picking up next session:**
+          recognizing Prisma's specific "record not found" error
+          (`Prisma.PrismaClientKnownRequestError` with `code === 'P2025'`
+          — a `PUT`/`DELETE` targeting a nonexistent recipe `id` throws
+          this) globally in `errorHandler.js`, instead of adding a
+          per-route existence check. Concept explained directly on
+          request (Prisma's known-error-code system), the "detect Prisma
+          errors" instinct initially pushed back on once already this
+          session (in an earlier, different context — deciding whether
+          to *trust* `err.message`) but correctly distinguished by the
+          student as a different problem here: recognizing one specific,
+          well-documented error code and mapping it to a clean, generic
+          message — not blindly trusting arbitrary Prisma error text.
+          Design settled through a few wrong turns, self-corrected each
+          time: first considered `throw`ing inside the error-handling
+          middleware itself (self-recognized nothing catches an error
+          thrown from the *last* middleware in the chain, once asked);
+          landed on reassigning `err = new AppError('Record not found',
+          404)` *before* the existing `if (err instanceof AppError)`
+          check, so one unified path handles both cases with no
+          duplicated response-building code. Agreed on, not yet written
+          into `errorHandler.js`.
+
+28. **Controller/service split (route-by-route).** Picked up 2026-09-08 —
+    the MVC-style split flagged as deliberately deferred in Section 27
+    is now being started. Plan as stated: go route file by route file,
+    pulling each into a controller + a data-access layer, rather than
+    doing the whole backend at once.
+
+    Obstacles motivating the split, stated directly by the student
+    2026-09-08 (not yet turned into concrete task breakdown):
+    1. Changing the DB schema currently means changing Prisma calls in
+       multiple scattered locations, with no single place holding them
+       all — so a schema change means both hunting down every affected
+       spot and holding in mind everything a given change might touch.
+    2. The frontend breaks on backend changes because there's no
+       standardized shape for the data going over the wire between
+       them.
+    3. No dedicated spot for validating incoming request data — a
+       client can send anything, and when something's wrong the
+       response is just a generic "Internal Server Error" with no
+       detail on what actually failed (related to the newly-noticed gap
+       above: `PUT /recipes/:id` 500ing on a missing `ingredients`/
+       `instructions` key is a concrete instance of this same problem).
+
+    Design questions worked through via guided questions before writing
+    any of it:
+    - **Naming: "service", not "model."** Prisma already generates
+      *models* from `schema.prisma` (`prisma.recipes`, etc.), so a new
+      layer also called "model" would collide with that. Landed on
+      `services/` for the data-access layer.
+    - **How a service gets its `prisma` instance.** Considered
+      dependency injection (keep threading `prisma` down through a
+      factory function, the existing pattern in every route file) vs.
+      each service `require`ing the `lib/prisma.js` singleton directly.
+      Correctly reasoned that `require`'s module caching means both
+      options resolve to the exact same single `PrismaClient` instance
+      either way, so "only one instance" doesn't distinguish them — the
+      real tradeoff is coupling/swappability (DI lets a caller hand in
+      a different client, e.g. for tests, without editing the service;
+      direct `require` hard-wires the service to one specific file).
+      Deliberately chose direct `require` anyway, prioritizing fewer
+      layers of indirection to trace through over swappability not
+      currently needed. Consequence traced through correctly: a route
+      file with no service to inject nothing into no longer needs to be
+      a factory function at all — collapses to a plain
+      `module.exports = router`, and its `app.js` mount line drops the
+      `(prisma)` call.
+    - **Controller/service boundary.** Services stay pure data in/out —
+      no HTTP concepts, return `null` on a lookup miss rather than
+      throwing. Controllers own anything touching `req`/`res`: response
+      reshaping (e.g. raw Prisma rows → the exact JSON shape the
+      frontend wants), existence checks, and translating a `null` into
+      `throw new AppError(...)`.
+
+    - [x] **`routes/auth.js`** (2026-09-08) — first through the split,
+          chosen for being smallest. Correctly recognized up front that
+          this route never touches the database at all (password check
+          is against `process.env.ADMIN_PASSWORD_HASH`, not Prisma), so
+          it gets a controller only, no service — a real, useful
+          exception to the pattern rather than a gap. `login` moved
+          into `controllers/authController.js` unchanged; one
+          self-corrected omission (`module.exports = { login }` missing
+          entirely at first, caught when asked how `routes/auth.js`
+          would get access to it). `routes/auth.js` now just
+          `router.post('/login', authController.login)`. `npm test`:
+          8/8 passing.
+    - [x] **`routes/week.js`** (2026-09-08) — first route through the
+          split with a real service layer
+          (`services/weekService.js`: `getWeek`, `getDay`, `updateMeal`,
+          `deleteMeals`, all thin `await prisma.week_meal...` wrappers)
+          and `controllers/weekController.js` owning the
+          `{day, meal}` reshape and the `Day not found`/`Week not
+          found` `AppError` guards. Several real bugs hit and
+          self-diagnosed via guided questions rather than pointed out
+          directly:
+          1. `weekController.js` only exported `{ getWeek }`, leaving
+             `updateDayMeal`/`deleteMeals` as `undefined` — crashed the
+             entire test suite at import time (`argument handler must
+             be a function`) before any test could even run.
+          2. None of the three controller functions were `async`, and
+             none of their calls into `weekService`'s `async` functions
+             were `await`ed — `weekMeal` ended up being a `Promise`
+             object rather than the resolved row, which then reached
+             Prisma as `where: { id: undefined }` and threw a
+             `PrismaClientValidationError` that crashed the whole Node
+             process rather than returning a clean error. Correctly
+             connected this to Express 5's automatic rejected-promise
+             forwarding (Section 27): with no `async` on the handler,
+             there's no promise for Express to watch, so the rejection
+             had nowhere to go.
+          3. `router.delete('week/meals', ...)` — missing leading `/`,
+             silently registered a route that never matched, giving a
+             `404` where `204` was expected. Spotted by comparing
+             against the two correctly-written routes right above it.
+          4. `weekController.js` used `AppError` on two lines without
+             ever `require`-ing it — same shape of bug as the `auth.js`
+             and `errorHandler.js` `Prisma` import bugs from Section 27,
+             but this time *not* caught by the test suite, since no
+             existing test exercises an invalid `:day` or an empty
+             week. Used deliberately as a lesson: "8/8 passing" tells
+             you the tested paths work, not that every path is bug-free
+             — the untested `AppError` paths were both silently broken
+             until asked to check.
+
+          `npm test`: 8/8 passing after all four fixes. `app.js` mount
+          updated to `app.use('/api', weekRoutes)` (no more `(prisma)`
+          call, per the direct-`require` decision above).
+
+    Ideas raised 2026-09-08 while working through `week.js`, not yet
+    started or turned into tasks:
+    - **Expand test coverage once the refactor settles.** The existing
+      8 tests don't cover every case that now matters — concretely,
+      `week.js`'s two `AppError` paths (`Day not found`/`Week not
+      found`) went unexercised and stayed silently broken (missing
+      `AppError` import) through the whole refactor, only caught by
+      manual inspection rather than a failing test.
+    - **Split `app.test.js` into multiple files**, organized by route
+      or feature, rather than one growing file — for manageability as
+      test count increases from the above.
+    - **Possibly move the `{day, meal}` week-formatting function out of
+      `weekController.js` into its own file.** Motive clarified: not a
+      reversal of the controller/service boundary (reshaping for the
+      frontend response is still a controller concern) — driven by
+      wanting it testable in isolation as a pure function, separate
+      from an HTTP request/response cycle. Naming settled: **serializers**
+      (a dedicated layer converting DB records into API-response shape,
+      distinct from `services/`'s data-access-only meaning). Not yet
+      built — `weekFormatter`/`weekSerializer` not yet extracted.
+
+    - [x] **`routes/groceryList.js`** (2026-09-14) — `services/
+          groceryListService.js` + `controllers/groceryListController.js`,
+          same naming/boundary as `auth.js`/`week.js`. Along the way,
+          the combining `reduce`/`.find()`/`.sort()` chain inside
+          `getGroceryList` was pulled into its own local helper,
+          `sumIngredients` — purely for readability (no reuse or
+          testing motive), so kept unexported in the same file rather
+          than promoted to its own module; flagged that not exporting
+          it means it can't be unit-tested in isolation if a testing
+          motive shows up later. One self-diagnosed bug, same shape as
+          Section 28's earlier `week.js` bugs: `groceryListController.js`
+          called the `async` `groceryListService.getGroceryList()`
+          without `await`, so `res.json(...)` would have serialized a
+          `Promise` object rather than the resolved list — caught by
+          tracing through by hand, not by `npm test` (`GET
+          /api/grocery-list` has no test coverage).
+    - [x] **`routes/recipes.js`** (2026-09-14) — `services/
+          recipesService.js` + `controllers/recipesController.js`, same
+          split. Two more self-diagnosed bugs, both in the `PUT
+          /recipes/:id` path, again invisible to `npm test` since that
+          route also has no test coverage: (1) the controller called
+          `recipesService.updateRecipe(...)`, a name that didn't exist
+          on the service yet (still `editRecipe` there, and the
+          function's own `module.exports` still referenced the
+          controller's old `editRecipe` name too, briefly crashing the
+          whole suite at import time with `ReferenceError: editRecipe is
+          not defined` — same failure shape as Section 28's earlier
+          `weekController.js` export bug); settled by renaming
+          consistently to `updateRecipe` on both the service and the
+          route wiring, not just one side. (2) The same missing-`await`
+          bug as `groceryList.js` above, on the call into
+          `recipesService.updateRecipe(...)`.
+
+          **Resolved the open normalization question** (service vs.
+          controller) worked out via guided questions: normalization
+          stays in `recipesService.js`, where it already was. Reasoning
+          landed on by the student: the controller's validation job is
+          checking the incoming data is the *right shape/type* (a
+          request-level concern), while normalization
+          (`normalizeUnit`/`normalizeIngredient` deciding "Pound" and
+          "lb" mean the same thing) is a *business rule about how
+          already-valid data should be treated* — squarely a service
+          concern. Consistent with `groceryListService.js`'s
+          `sumIngredients` already treating normalization the same way,
+          as part of "how ingredients combine," never reached into by
+          `groceryListController.js`.
+
 ## Dev tooling improvements
 
 Ad hoc, outside the numbered build plan — real changes to the project,
@@ -2481,41 +2804,115 @@ requested directly rather than as a plan task, recorded the same way.
   `connect-pg-simple` (already on Postgres) or Redis. Not yet turned
   into a task.
 
-- **Tests shouldn't have to manually restore database state.** Flagged
-  2026-09-01 by the student, while writing a test for `DELETE
-  /api/week/meals`: every mutation test in `app.test.js` currently notes
-  the real data beforehand and restores it by hand afterward (`PUT
-  /api/week/:day`'s existing test, and the new unassign test, both do
-  this for one day; the new clear-week test needs it for all seven at
-  once). The real gap: tests should start from known-good data
-  automatically (e.g. a proper seed/reset step), not rely on each test's
-  own before/after bookkeeping to avoid corrupting real dev-adjacent
-  test data if a test fails partway through. Not yet turned into a task.
+- **`PUT /recipes/:id` crashes with a raw 500 if `ingredients`/
+  `instructions` are missing from the request body.** Noticed 2026-09-08
+  while live-testing the new Prisma-P2025-to-404 handling in
+  `errorHandler.js`: a malformed test body (no `instructions` key) hit
+  `instructions.map(...)` in `routes/recipes.js` before the request ever
+  reached Prisma, throwing a `TypeError` — caught by `errorHandler.js`'s
+  generic `else` branch, so it's indistinguishable from any other
+  unexpected 500 without reading the log. Not a regression from the
+  error-handling refactor, just newly visible while poking at it. Not
+  yet turned into a task; possible fix shape would be validating the
+  request body's shape before it reaches Prisma at all, rather than only
+  handling Prisma-level errors globally.
 
-- **Instructions as separate steps, not one text blob.** Flagged
-  2026-09-02 by the student, while redesigning the recipe view/edit
-  panel: pressing Enter between instructions and having the text wrap
-  (long line, narrow textarea) both produce a line break, but CSS
-  `line-height` can't tell those two cases apart — a manual line break
-  and a wrap-forced one get identical spacing, so "more space between
-  instructions, tight spacing within one wrapped instruction" isn't
-  achievable with a single `<textarea>`/string. The fix considered:
-  store instructions as an array of steps, same shape as `ingredients`
-  (its own table or JSON column instead of one text field), rendered as
-  rows with the same add/remove pattern already built for ingredients —
-  sidesteps the line-height limitation entirely since each step is its
-  own element. Real scope: a schema/migration change (supersedes
-  Section 16's single-text-with-newlines approach), existing recipes'
-  instructions would need splitting on `\n` to migrate, and the create
-  /update routes plus import-from-URL parsing would all need to speak
-  "array of steps" instead of one string. Notable in its favor: schema
-  .org's `recipeInstructions` (already parsed on import) is commonly an
-  array of `HowToStep` objects to begin with, so today's import is
-  likely flattening already-structured data into one string — same
-  "already fetched, discarded" situation as the cook-time/tags/rating
-  fields noted in section 21's data map. Not yet turned into a task.
+- **Backend test plan — written, all passing (completed 2026-09-23).**
+  Mapped out 2026-09-15, full checklist in `design/test-plan.md`. Every
+  item is now checked off: service, lib, and middleware unit tests plus
+  integration tests for all four controllers (66/66 passing). The missing
+  validation/fixes each test depended on were built along the way (see
+  that file's "Fixed" section).
+
+- **Next session, queued 2026-09-23: design pass before any new feature.**
+  The student's plan: (1) write down the input and response shape for
+  every route, (2) figure out what new tables are needed, (3) list the
+  functionality they want to add, (4) then pick which feature to build
+  next. Candidates already floated: real user accounts (prerequisite for
+  the suggestion algorithm below), recipe suggestions, import-from-URL
+  (`recipeParser.js`). Open questions to fold in: different units for the
+  same ingredient in the grocery list, instruction step ordering.
+
+- **Recipe suggestion algorithm — future feature, research only so far.**
+  From daily-log 2026-09-15's note 5: a per-user recommendation system —
+  tag recipes by category (protein/dish/etc.), keep a per-user score per
+  tag that rises when a recipe's assigned to the calendar and falls on
+  an explicit dislike, then suggest recipes ranked by matching score.
+  Depends on real multi-user accounts existing first (currently just one
+  shared admin login, no `users` table) — that's a prerequisite section
+  of its own, before this is buildable.
+  Also worked through *how* to pick which recipe to suggest, so it isn't
+  always just the single top-scoring match on repeat: that's the
+  exploration-vs-exploitation problem from recommender systems /
+  multi-armed bandits. Simplest fix is weighted random sampling
+  (softmax over scores, so a high score is more *likely* but not
+  guaranteed). For something more principled later: UCB or Thompson
+  Sampling — both track *confidence* in a category's score alongside the
+  score itself, so a category picked consistently gets suggested more
+  reliably over time (tighter confidence, not just a higher number),
+  while one tried once or twice doesn't get over-trusted off a single
+  data point. Note: the "pick the same category more if the user keeps
+  picking it" reinforcement itself would already happen with plain score
+  accumulation alone — what bandit algorithms specifically add on top is
+  the confidence/uncertainty handling, not the reinforcement direction.
+  A future chatbot layer (user describes what they want in free text,
+  extract categories from it to adjust scores) was also floated, but
+  treated as a separate, later stretch goal on top of this foundation,
+  not part of the same first pass.
+
+  **Rough follow-up thinking, 2026-09-15, on how that chatbot layer would
+  feed the scoring system — all very likely to change, just early ideas:**
+  a parsed keyword/category from the chat would get (a) a temporary boost
+  applied just to that suggestion pass, and (b) a small permanent bump to
+  the persistent score too, so asking for the same thing repeatedly is
+  itself treated as a real preference signal over time, not just a
+  one-off override. Undecided whether the boost is additive or
+  multiplicative — leaning toward just testing both and comparing.
+  Scope: a boost applies to every suggestion in a batch by default, but
+  can be scoped narrower (e.g. "something quick for the weekdays") —
+  fits naturally since `week_meal` is already one row per day, so each
+  day already gets its own independent suggestion pass to apply a scoped
+  boost to. Loose end: this means the chatbot's extraction step needs to
+  output tag+scope pairs (e.g. "quick" -> Mon-Fri), not just a flat list
+  of keywords.
+
+  **Also discussed, 2026-09-15: whether this is worth a resume line, and
+  how to actually demonstrate it — rough ideas, not decided/built:**
+  worth including for an entry-level resume as a differentiator beyond a
+  typical CRUD portfolio project, but only after the fundamentals (a
+  deployed working app, clean code, real tests) are solid — those are
+  what most entry-level screens actually filter on first. The real
+  practical problem: a recommendation system needs a long history of
+  real usage to visibly prove it's working, which a solo/personal
+  project won't have naturally. Two ideas that pair well: (1) a script
+  that seeds fake usage history (simulated picks/dislikes over a
+  compressed fake timeline) so the suggester's behavior can actually be
+  demoed/screenshotted; (2) tests that seed known scores, run the
+  selection function many times, and assert the resulting distribution
+  matches the expected weighting — a stronger, more convincing proof of
+  correctness than a live demo alone. A README/write-up explaining the
+  design reasoning (tags -> scores -> explore/exploit -> why bandits
+  over plain top-N) was also floated as its own separate portfolio
+  artifact.
 
 ## Known issues (fixed)
+
+- **Tests shouldn't have to manually restore database state.** Flagged
+  2026-09-01: every mutation test in `app.test.js` noted the real data
+  beforehand and restored it by hand afterward, instead of starting from
+  a known-good state that reset itself automatically. Fixed by
+  Section 26 (completed 2026-09-05): a `beforeEach` reset (wiping
+  `week_meal`/`ingredients`/`instructions`/`recipes` in the correct
+  order) replaced all the manual capture-and-restore code.
+
+- **Instructions as separate steps, not one text blob.** Flagged
+  2026-09-02: `line-height` can't distinguish a manually-typed line
+  break from a wrap-forced one, so instructions stored as a single
+  `<textarea>`/string could never get "more space between steps, tight
+  spacing within one wrapped step." Fixed by Section 25 (completed
+  2026-09-05): instructions moved into their own table, same shape as
+  `ingredients`, sidestepping the `line-height` limitation entirely
+  since each step is now its own element.
 
 - **Unit-name case sensitivity in `/api/grocery-list`'s combining logic.**
   Flagged 2026-08-28 during task 10.6 (originally described against the

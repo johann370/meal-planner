@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const groceryListRoutes = require('./routes/groceryList');
 const recipesRoutes = require('./routes/recipes');
 const weekRoutes = require('./routes/week');
+const errorHandler = require('./middleware/errorHandler.js')
 
 const app = express();
 
@@ -25,11 +26,13 @@ app.use(session({
     saveUninitialized: false,
     cookie: process.env.PORT ? { sameSite: 'none', secure: true } : {},
 }));
-app.use('/api', authRoutes());
+app.use('/api', authRoutes);
 app.use(requireAuth);
-app.use('/api', groceryListRoutes(prisma));
-app.use('/api', recipesRoutes(prisma));
-app.use('/api', weekRoutes(prisma));
+app.use('/api', groceryListRoutes);
+app.use('/api', recipesRoutes);
+app.use('/api', weekRoutes);
+
+app.use(errorHandler);
 
 app.prisma = prisma;
 module.exports = app;
